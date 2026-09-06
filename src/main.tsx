@@ -10,12 +10,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ReactFlowProvider>
       <CloudRoot
         renderLocal={(openCloud) => <App onCloud={openCloud} />}
-        renderProject={(document, back) => (
+        renderProject={(document, controls) => (
           <App
             key={document.id}
             initialProject={document}
-            readOnly
-            onBack={back}
+            readOnly={controls.readOnly}
+            onBack={controls.onBack}
+            onProjectChange={controls.onChange}
+            cloudStatus={controls.status}
+            onCloudUndo={controls.onUndo}
+            canCloudUndo={controls.canUndo}
           />
         )}
       />

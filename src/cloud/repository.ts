@@ -6,7 +6,7 @@ export interface CloudProject {
   revision: number;
   role: "owner" | "editor" | "viewer";
 }
-function parseRow(value: unknown): CloudProject {
+export function parseCloudProject(value: unknown): CloudProject {
   if (!value || typeof value !== "object")
     throw new Error("Invalid cloud project.");
   const row = value as Record<string, unknown>;
@@ -55,7 +55,7 @@ export function createProjectRepository(
     async load(id: string): Promise<CloudProject> {
       const { data, error } = await query().eq("id", id).single();
       if (error) throw error;
-      return parseRow(data);
+      return parseCloudProject(data);
     },
     async list(): Promise<CloudProject[]> {
       const { data, error } = await query().order("updated_at", {
@@ -63,7 +63,7 @@ export function createProjectRepository(
       });
       if (error) throw error;
       if (!Array.isArray(data)) throw new Error("Invalid project list.");
-      return data.map(parseRow);
+      return data.map(parseCloudProject);
     },
   };
 }

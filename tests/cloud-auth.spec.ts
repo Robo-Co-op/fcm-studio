@@ -100,7 +100,7 @@ test("Google OAuth begins with PKCE and returns to this app", async ({
   expect(url.searchParams.get("redirect_to")).toBe("http://127.0.0.1:5174/");
 });
 
-test("restored session creates a private project and opens a read-only map", async ({
+test("restored session creates a private project and opens an editable map", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -121,13 +121,12 @@ test("restored session creates a private project and opens a read-only map", asy
   await expect(
     page.getByRole("heading", { name: "Workshop outcomes" }),
   ).toBeVisible();
-  await expect(page.getByText("Cloud project · read only")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "New project", exact: true }),
   ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Add factor", exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await expect(
     page.getByRole("button", { name: "Explore with AI", exact: true }),
   ).toBeDisabled();
@@ -160,7 +159,9 @@ test("local project is copied explicitly without changing the local original", a
   await page
     .getByRole("button", { name: "Import local project", exact: true })
     .click();
-  await expect(page.getByText("Cloud project · read only")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Add factor", exact: true }),
+  ).toBeEnabled();
   await expect(
     page.getByRole("heading", { name: "A thriving community cooperative" }),
   ).toBeVisible();

@@ -162,17 +162,28 @@ export default function App({
   readOnly = false,
   onCloud,
   onBack,
+  onProjectChange,
+  cloudStatus,
+  onCloudUndo,
+  canCloudUndo = false,
 }: {
   initialProject?: Project;
   readOnly?: boolean;
   onCloud?: () => void;
   onBack?: () => void;
+  onProjectChange?: (next: Project) => void;
+  cloudStatus?: string;
+  onCloudUndo?: () => void;
+  canCloudUndo?: boolean;
 }) {
   const [project, setProjectState] = useState<Project>(() =>
     clone(initialProject ?? demoProject()),
   );
   const setProject: typeof setProjectState = (next) => {
-    if (!readOnly) setProjectState(next);
+    if (readOnly) return;
+    if (onProjectChange)
+      onProjectChange(typeof next === "function" ? next(project) : next);
+    else setProjectState(next);
   };
   const [ready, setReady] = useState(Boolean(initialProject));
   const [saveStatus, setSaveStatus] = useState(
@@ -196,7 +207,7 @@ export default function App({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [modal, setModal] = useState<
-    "factor" | "import" | "help" | "export" | "new" | null
+    "factor" | "import" | "help" | "export" | "new" | "details" | null
   >(null);
   const [factorName, setFactorName] = useState("");
   const [message, setMessage] = useState("");
@@ -230,7 +241,10 @@ export default function App({
   const model = project.model;
   const notify = useCallback((text: string) => setMessage(text), []);
   useEffect(() => {
-    if (initialProject) return;
+    if (initialProject) {
+      setProjectState(initialProject);
+      return;
+    }
     let live = true;
     get<Project>("fcm-studio-project")
       .then((p) => {
@@ -295,9 +309,15 @@ export default function App({
     if (readOnly) return;
     try {
       validateModel(next);
-      setPast((p) => [...p.slice(-49), clone(model)]);
-      setFuture([]);
-      setProject((p) => ({ ...p, model: next, revision: p.revision + 1 }));
+      if (!initialProject) {
+        setPast((p) => [...p.slice(-49), clone(model)]);
+        setFuture([]);
+      }
+      setProject((p) => ({
+        ...p,
+        model: next,
+        revision: p.revision + (initialProject ? 0 : 1),
+      }));
     } catch (e) {
       notify((e as Error).message);
     }
@@ -316,6 +336,10 @@ export default function App({
     }
   };
   const undo = () => {
+    if (onCloudUndo) {
+      onCloudUndo();
+      return;
+    }
     if (!past.length) return;
     setFuture((f) => [clone(model), ...f]);
     setProject((p) => ({
@@ -818,10 +842,10 @@ export default function App({
             )}
             <span className="saved">
               <i />
-              {saveStatus}
+              {cloudStatus ?? saveStatus}
             </span>
             <button
-              disabled={readOnly}
+              disabled={readOnly || Boolean(initialProject)}
               className="btn subtle"
               onClick={() => setModal("import")}
             >
@@ -844,8 +868,17 @@ export default function App({
             <p>{project.agenda}</p>
           </div>
           <div className="project-actions">
+            {initialProject && (
+              <button
+                className="btn"
+                disabled={readOnly}
+                onClick={() => setModal("details")}
+              >
+                Edit project details
+              </button>
+            )}
             <button
-              disabled={readOnly}
+              disabled={readOnly || Boolean(initialProject)}
               className="btn"
               onClick={() => setModal("new")}
             >
@@ -853,7 +886,7 @@ export default function App({
               New project
             </button>
             <button
-              disabled={readOnly}
+              disabled={readOnly || Boolean(initialProject)}
               className="btn dark"
               onClick={() => setPanel("ai")}
             >
@@ -888,13 +921,15 @@ export default function App({
           </div>
           <span className="sync-label">
             <i />
-            {initialProject ? "Cloud snapshot" : "Live sync"}
+            {initialProject ? "Shared workspace" : "Live sync"}
           </span>
           <div className="tool-spacer" />
           <button
             className="icon-btn"
             title="Undo"
-            disabled={!past.length}
+            disabled={
+              readOnly || (initialProject ? !canCloudUndo : !past.length)
+            }
             onClick={undo}
           >
             <Undo2 size={17} />
@@ -902,7 +937,7 @@ export default function App({
           <button
             className="icon-btn"
             title="Redo"
-            disabled={!future.length}
+            disabled={readOnly || Boolean(initialProject) || !future.length}
             onClick={redo}
           >
             <Redo2 size={17} />
@@ -1155,7 +1190,9 @@ export default function App({
             </div>
             <fieldset
               className="inspector-content"
-              disabled={readOnly}
+              disabled={
+                readOnly || (Boolean(initialProject) && panel !== "inspector")
+              }
               style={{ border: 0, margin: 0, minWidth: 0 }}
             >
               {panel === "inspector" && (
@@ -1861,13 +1898,18 @@ export default function App({
                 </button>
               </>
             )}
-            {modal === "new" && (
+            {(modal === "new" || modal === "details") && (
               <>
-                <span className="eyebrow">NEW RESEARCH PROJECT</span>
+                <span className="eyebrow">
+                  {modal === "details"
+                    ? "PROJECT DETAILS"
+                    : "NEW RESEARCH PROJECT"}
+                </span>
                 <h2>What will you explore?</h2>
                 <p>
-                  Export your current project first if you want a backup. This
-                  starts a new local workspace.
+                  {modal === "details"
+                    ? "Update the shared question and project name."
+                    : "Export your current project first if you want a backup. This starts a new local workspace."}
                 </p>
                 <form
                   onSubmit={(e) => {
@@ -1875,6 +1917,11 @@ export default function App({
                     const d = new FormData(e.currentTarget);
                     const name = String(d.get("name")).trim();
                     const agenda = String(d.get("agenda")).trim();
+                    if (modal === "details") {
+                      setProject((p) => ({ ...p, name, agenda }));
+                      setModal(null);
+                      return;
+                    }
                     resetRuntime();
                     setProject({
                       version: 1,
@@ -1894,13 +1941,23 @@ export default function App({
                   <label className="field-label">Project name</label>
                   <input
                     name="name"
+                    aria-label="Project name"
+                    defaultValue={modal === "details" ? project.name : ""}
                     className="full-input"
                     required
                     maxLength={100}
                   />
                   <label className="field-label">Research agenda</label>
-                  <textarea name="agenda" maxLength={16000} required />
-                  <button className="btn dark full">Create project</button>
+                  <textarea
+                    name="agenda"
+                    aria-label="Research agenda"
+                    defaultValue={modal === "details" ? project.agenda : ""}
+                    maxLength={16000}
+                    required
+                  />
+                  <button disabled={readOnly} className="btn dark full">
+                    {modal === "details" ? "Save details" : "Create project"}
+                  </button>
                 </form>
               </>
             )}
