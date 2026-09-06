@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "currency": "USD",
+  "openRouterEvaluationCap": 1,
+  "openRouterEvaluationSpent": 0,
+  "openRouterEvaluationsPerformed": 0,
+  "purchasesAuthorized": false,
+  "paidPlansAuthorized": false,
+  "maxIterations": 12,
+  "maxAttemptsPerItem": 3,
+  "iterationsUsed": 0,
+  "agentTokenCost": null,
+  "agentTokenCostNote": "Runtime does not expose priced token usage; no invented estimate.",
+  "unattendedExecution": false,
+  "updatedAt": "2026-09-06T12:14:33+09:00"
+}

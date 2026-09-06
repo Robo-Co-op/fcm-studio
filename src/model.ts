@@ -76,6 +76,9 @@ const safeId = (value: unknown): value is string =>
   boundedString(value, 120) && !(value in Object.prototype);
 const optionalText = (value: unknown): boolean =>
   value === undefined || boundedString(value, 4000, false);
+// SQL と同じ決定的な比較: 前後空白を除き ASCII 大文字だけを小文字化する。
+export const factorLabelKey = (label: string): string =>
+  label.trim().replace(/[A-Z]/g, (letter) => letter.toLowerCase());
 export function setWeight(
   model: Model,
   source: string,
@@ -100,9 +103,7 @@ export function addFactor(model: Model, label: string): Model {
   const name = label.trim();
   if (
     !name ||
-    model.factors.some(
-      (f) => f.label.trim().toLowerCase() === name.toLowerCase(),
-    )
+    model.factors.some((f) => factorLabelKey(f.label) === factorLabelKey(name))
   )
     throw new Error("Enter a unique factor name.");
   const n = model.factors.length;
@@ -154,10 +155,10 @@ export function validateModel(value: unknown): asserts value is Model {
       !["human", "imported", "ai"].includes(f.provenance)
     )
       throw new Error("Invalid factor.");
-    if (ids.has(f.id) || labels.has(f.label.trim().toLowerCase()))
+    if (ids.has(f.id) || labels.has(factorLabelKey(f.label)))
       throw new Error("Duplicate factor IDs or names.");
     ids.add(f.id);
-    labels.add(f.label.trim().toLowerCase());
+    labels.add(factorLabelKey(f.label));
   }
   const pairs = new Set<string>();
   for (const e of m.relationships) {
@@ -210,7 +211,10 @@ export function validateRun(value: unknown): asserts value is Run {
     !isRecord(value) ||
     !safeId(value.id) ||
     !boundedString(value.createdAt, 100) ||
-    !Number.isFinite(Date.parse(value.createdAt))
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.createdAt) ||
+    value.createdAt.startsWith("0000-") ||
+    !Number.isFinite(Date.parse(value.createdAt)) ||
+    new Date(value.createdAt).toISOString() !== value.createdAt
   )
     throw new Error("Invalid run.");
   validateModel(value.snapshot);
