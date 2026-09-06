@@ -1195,9 +1195,6 @@ textarea {
     width: 245px;
     min-width: 245px;
   }
-  .project-actions .btn:first-child {
-    display: none;
-  }
   h1 {
     font-size: 23px;
   }
@@ -1234,7 +1231,8 @@ textarea {
     padding: 20px;
   }
   .project-actions {
-    display: none;
+    display: flex;
+    flex-wrap: wrap;
   }
   .workspace-body {
     height: auto;
