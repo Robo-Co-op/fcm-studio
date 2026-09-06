@@ -1,0 +1,195 @@
+.cloud-page {
+  min-height: 100vh;
+  background: #f7f7ee;
+  color: #253c35;
+  font-family: Inter, system-ui, sans-serif;
+}
+.cloud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 5%;
+  border-bottom: 1px solid #dbe2d5;
+}
+.cloud-header strong {
+  font-size: 23px;
+}
+.cloud-header strong span {
+  font-weight: 400;
+}
+.cloud-page button {
+  border: 1px solid #cad7cb;
+  border-radius: 9px;
+  background: #fffef8;
+  padding: 11px 16px;
+  color: #294a3d;
+  cursor: pointer;
+  font: inherit;
+}
+.cloud-page button:hover {
+  background: #eef2e7;
+}
+.cloud-page button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.cloud-main {
+  max-width: 1120px;
+  margin: auto;
+  padding: 56px 24px;
+}
+.cloud-eyebrow {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #677f70;
+  font-weight: 700;
+}
+.cloud-main h1 {
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -1.5px;
+  margin: 15px 0;
+}
+.cloud-intro {
+  max-width: 660px;
+  line-height: 1.7;
+  color: #64776c;
+  margin-bottom: 32px;
+}
+.cloud-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 24px;
+}
+.cloud-card {
+  background: #fffef9;
+  border: 1px solid #dce3d6;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 5px 18px #274b3510;
+}
+.cloud-card h2 {
+  font-size: 20px;
+  margin: 0 0 18px;
+}
+.cloud-card p {
+  line-height: 1.6;
+  color: #64776c;
+}
+.cloud-card form {
+  display: grid;
+  gap: 18px;
+}
+.cloud-card label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cloud-card input,
+.cloud-card textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cfdbcd;
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+  color: #253c35;
+}
+.cloud-card textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.cloud-page .cloud-primary {
+  background: #2c5b46;
+  color: white;
+  border-color: #2c5b46;
+}
+.cloud-page .cloud-primary:hover {
+  background: #244e3b;
+}
+.cloud-login {
+  max-width: 560px;
+}
+.cloud-note {
+  font-size: 12px;
+  margin-top: 24px;
+}
+.cloud-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: #64776c;
+}
+.cloud-import {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #e3e8dc;
+}
+.cloud-import h3 {
+  font-size: 15px;
+}
+.cloud-import p {
+  font-size: 13px;
+}
+.cloud-list-heading {
+  display: flex;
+  justify-content: space-between;
+}
+.cloud-projects {
+  padding: 0;
+  list-style: none;
+}
+.cloud-projects li {
+  margin: 12px 0;
+}
+.cloud-projects button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  text-align: left;
+  width: 100%;
+  padding: 18px;
+}
+.cloud-projects small {
+  display: block;
+  margin-top: 7px;
+  color: #728378;
+}
+.cloud-role {
+  font-size: 11px;
+  border-radius: 20px;
+  padding: 5px 9px;
+  background: #e7eee3;
+}
+.cloud-error {
+  padding: 15px;
+  border-radius: 8px;
+  background: #fbe7dc;
+  color: #923e29;
+  margin: 15px 0;
+}
+.cloud-empty {
+  padding: 30px 0;
+}
+.cloud-page :focus-visible {
+  outline: 3px solid #77a889;
+  outline-offset: 3px;
+}
+@media (max-width: 720px) {
+  .cloud-columns {
+    grid-template-columns: 1fr;
+  }
+  .cloud-header {
+    gap: 14px;
+  }
+  .cloud-main {
+    padding: 30px 16px;
+  }
+  .cloud-card {
+    padding: 22px;
+  }
+}

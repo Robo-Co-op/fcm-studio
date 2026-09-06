@@ -88,12 +88,14 @@ function WeightCell({
   onChange,
   onSelect,
   active,
+  readOnly = false,
 }: {
   value: number;
   label: string;
   onChange: (n: number) => void;
   onSelect: () => void;
   active: boolean;
+  readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState(String(value));
   const cancel = useRef(false);
@@ -114,6 +116,7 @@ function WeightCell({
   return (
     <input
       aria-label={label}
+      readOnly={readOnly}
       className={`${value > 0 ? "positive" : value < 0 ? "negative" : "zero"} ${active ? "active-cell" : ""}`}
       value={draft}
       onFocus={onSelect}
@@ -154,10 +157,27 @@ function WeightCell({
     />
   );
 }
-export default function App() {
-  const [project, setProject] = useState<Project>(demoProject);
-  const [ready, setReady] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Loading…");
+export default function App({
+  initialProject,
+  readOnly = false,
+  onCloud,
+  onBack,
+}: {
+  initialProject?: Project;
+  readOnly?: boolean;
+  onCloud?: () => void;
+  onBack?: () => void;
+}) {
+  const [project, setProjectState] = useState<Project>(() =>
+    clone(initialProject ?? demoProject()),
+  );
+  const setProject: typeof setProjectState = (next) => {
+    if (!readOnly) setProjectState(next);
+  };
+  const [ready, setReady] = useState(Boolean(initialProject));
+  const [saveStatus, setSaveStatus] = useState(
+    initialProject ? "Cloud project · read only" : "Loading…",
+  );
   const [restoreBlocked, setRestoreBlocked] = useState(false);
   const [past, setPast] = useState<Model[]>([]);
   const [future, setFuture] = useState<Model[]>([]);
@@ -210,6 +230,7 @@ export default function App() {
   const model = project.model;
   const notify = useCallback((text: string) => setMessage(text), []);
   useEffect(() => {
+    if (initialProject) return;
     let live = true;
     get<Project>("fcm-studio-project")
       .then((p) => {
@@ -243,9 +264,9 @@ export default function App() {
       workerRef.current?.terminate();
       baselineWorkerRef.current?.terminate();
     };
-  }, [notify]);
+  }, [notify, initialProject]);
   useEffect(() => {
-    if (!ready || restoreBlocked) return;
+    if (!ready || restoreBlocked || initialProject) return;
     setSaveStatus("Saving…");
     const t = setTimeout(() => {
       set("fcm-studio-project", project)
@@ -255,7 +276,7 @@ export default function App() {
         });
     }, 350);
     return () => clearTimeout(t);
-  }, [project, ready, restoreBlocked]);
+  }, [project, ready, restoreBlocked, initialProject]);
   useEffect(() => {
     if (!message) return;
     const t = setTimeout(() => setMessage(""), 6500);
@@ -271,6 +292,7 @@ export default function App() {
     );
   }, [model.factors]);
   const edit = (next: Model) => {
+    if (readOnly) return;
     try {
       validateModel(next);
       setPast((p) => [...p.slice(-49), clone(model)]);
@@ -769,11 +791,40 @@ export default function App() {
             <span className="beta">PROTOTYPE</span>
           </div>
           <div className="topbar-right">
+            {onCloud && (
+              <button
+                className="btn"
+                onClick={async () => {
+                  if (!restoreBlocked) {
+                    try {
+                      await set("fcm-studio-project", project);
+                    } catch {
+                      notify(
+                        "Save failed. Export a backup before leaving this workspace.",
+                      );
+                      return;
+                    }
+                  }
+                  onCloud();
+                }}
+              >
+                Cloud workspace
+              </button>
+            )}
+            {onBack && (
+              <button className="btn" onClick={onBack}>
+                Back to projects
+              </button>
+            )}
             <span className="saved">
               <i />
               {saveStatus}
             </span>
-            <button className="btn subtle" onClick={() => setModal("import")}>
+            <button
+              disabled={readOnly}
+              className="btn subtle"
+              onClick={() => setModal("import")}
+            >
               <ArrowUpFromLine size={15} />
               Import
             </button>
@@ -793,11 +844,19 @@ export default function App() {
             <p>{project.agenda}</p>
           </div>
           <div className="project-actions">
-            <button className="btn" onClick={() => setModal("new")}>
+            <button
+              disabled={readOnly}
+              className="btn"
+              onClick={() => setModal("new")}
+            >
               <Plus size={15} />
               New project
             </button>
-            <button className="btn dark" onClick={() => setPanel("ai")}>
+            <button
+              disabled={readOnly}
+              className="btn dark"
+              onClick={() => setPanel("ai")}
+            >
               <Sparkles size={15} />
               Explore with AI
             </button>
@@ -829,7 +888,7 @@ export default function App() {
           </div>
           <span className="sync-label">
             <i />
-            Live sync
+            {initialProject ? "Cloud snapshot" : "Live sync"}
           </span>
           <div className="tool-spacer" />
           <button
@@ -851,6 +910,7 @@ export default function App() {
           <span className="tool-divider" />
           <button
             className="btn green"
+            disabled={readOnly}
             onClick={() => {
               setFactorName("");
               setModal("factor");
@@ -874,10 +934,18 @@ export default function App() {
                     </small>
                   </span>
                   <div>
-                    <button className="text-btn" onClick={() => layout(false)}>
+                    <button
+                      disabled={readOnly}
+                      className="text-btn"
+                      onClick={() => layout(false)}
+                    >
                       Auto layout
                     </button>
-                    <button className="text-btn" onClick={() => layout(true)}>
+                    <button
+                      disabled={readOnly}
+                      className="text-btn"
+                      onClick={() => layout(true)}
+                    >
                       Circle
                     </button>
                     <button
@@ -902,6 +970,8 @@ export default function App() {
                   nodes={nodes}
                   edges={edges}
                   nodeTypes={nodeTypes}
+                  nodesDraggable={!readOnly}
+                  nodesConnectable={!readOnly}
                   onNodesChange={(changes) => {
                     const positions = changes.flatMap((c) =>
                       c.type === "position" && c.position
@@ -978,7 +1048,7 @@ export default function App() {
                     Weight matrix <small>Rows influence columns</small>
                   </span>
                   <span className="matrix-note">
-                    −1 to +1 <i /> click to edit
+                    −1 to +1 <i /> {readOnly ? "read only" : "click to edit"}
                   </span>
                 </div>
                 <div className="matrix-scroll">
@@ -1018,6 +1088,7 @@ export default function App() {
                           {model.factors.map((b) => (
                             <td key={b.id}>
                               <WeightCell
+                                readOnly={readOnly}
                                 label={`${a.label} → ${b.label}`}
                                 value={
                                   model.relationships.find(
@@ -1040,12 +1111,15 @@ export default function App() {
                   </table>
                   {!model.factors.length && (
                     <div className="empty">
-                      Add a factor or import a workbook to begin.
+                      {readOnly
+                        ? "This project has no factors yet."
+                        : "Add a factor or import a workbook to begin."}
                     </div>
                   )}
                 </div>
                 <button
                   className="matrix-add"
+                  disabled={readOnly}
                   onClick={() => {
                     setFactorName("");
                     setModal("factor");
@@ -1079,7 +1153,11 @@ export default function App() {
                 AI
               </button>
             </div>
-            <div className="inspector-content">
+            <fieldset
+              className="inspector-content"
+              disabled={readOnly}
+              style={{ border: 0, margin: 0, minWidth: 0 }}
+            >
               {panel === "inspector" && (
                 <>
                   {selected ? (
@@ -1697,7 +1775,7 @@ export default function App() {
                   )}
                 </>
               )}
-            </div>
+            </fieldset>
             <div className="inspector-footer">
               <GitBranch size={15} /> Built for collective understanding.
             </div>
@@ -1706,9 +1784,11 @@ export default function App() {
         <footer className="statusbar">
           <span>
             <span className="status-dot" />{" "}
-            {project.id === "demo"
-              ? "SYNTHETIC DEMO"
-              : "LOCAL RESEARCH PROJECT"}{" "}
+            {initialProject
+              ? "CLOUD RESEARCH PROJECT"
+              : project.id === "demo"
+                ? "SYNTHETIC DEMO"
+                : "LOCAL RESEARCH PROJECT"}{" "}
             <span className="footer-sep">|</span> Original baseline preserved
           </span>
           <span>

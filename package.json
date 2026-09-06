@@ -1,6 +1,6 @@
 {
   "name": "fcm-studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,11 +9,14 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts",
     "server": "node server/index.mjs",
     "lint": "eslint .",
+    "gate": "node scripts/gate.mjs",
     "format": "prettier --write src server tests *.ts *.js *.json *.md"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.115.0",
     "@xyflow/react": "^12.8.0",
     "exceljs": "^4.4.0",
     "html-to-image": "^1.11.13",
@@ -23,6 +26,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.0.0",
     "@playwright/test": "^1.55.0",
     "@types/node": "^22.0.0",
