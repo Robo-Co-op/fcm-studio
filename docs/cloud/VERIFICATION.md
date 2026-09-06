@@ -26,3 +26,12 @@ Supabaseにはmigrationを適用し、Google OAuthクライアント、Supabase 
 秘密値は1Passwordからプロセス内で取得し、環境ファイルやGitに保存しない。
 
 現時点では1Password CLIの認証は確認済み。利用可能な保管庫から、本アプリ向けSupabase管理トークン、Vercel APIトークン、OpenRouterキーは特定できていない。
+
+## 第2スライス
+
+- Plan: GitHub #2。`replace_model` と `set_details` の2種類を、operation IDと期待revision付きで実行する。異なるfactorでも同時変更は競合とし、自動マージはしない。
+- Build: 古いrevision、同じoperationの再送、閲覧者・部外者・取消済みメンバー、不正モデル、保存・operation上限を実PostgreSQLで検証。
+- Conflict UX: サーバー確定版を表示し、未保存案は別に保持。JSON書き出し、破棄、確認ダイアログ後の全体再適用を提供。
+- Sync: Supabase Realtimeの更新購読を登録し、focus・online・10秒間隔でも認可済みデータを再取得。取消検出時は開いていた研究データを画面から除去。
+- Browser: 外部Supabase境界を模擬した2セッション、同一revision競合、viewer、offline/reconnect、undo、詳細更新、権限取消を検証。本番Realtimeの証明ではない。
+- Improve: 途中で一部担当がworkspace credit不足になった後、独立checkerを再実行。初回FAILで指摘された同一セル競合、一括paste、取消後SELECT拒否の証明を追加し、再判定PASS。決定的ゲート122件、20件のコマンド攻撃表、クラウド画面12件も成功。

@@ -6,6 +6,8 @@ Type: AFK. Covers user stories 6–7 in the cloud PRD.
 
 Enable owner/editor cloud editing through validated atomic commands and authoritative revisions, then propagate committed changes to other sessions through Realtime. Use database test fixtures for multiple members until invitation UI ships. Replace snapshot undo for cloud mode with preconditioned inverse operations.
 
+Implementation decision: factor/edge/position/paste edits use a validated `replace_model` command, and name/agenda use `set_details`. Both compare the complete project's expected revision. Even edits to different factors can conflict; the rejected draft remains available for review/export. Automatic field merging is deferred so no acknowledged peer edit is silently discarded.
+
 ## Acceptance criteria
 
 - [ ] Factor, relationship, position, agenda/name, and matrix paste changes use one command boundary with operation ID and expected revision.
@@ -21,4 +23,4 @@ Enable owner/editor cloud editing through validated atomic commands and authorit
 
 ## Blocked by
 
-Issue 01 — authenticated private project persistence. Replace this local reference with the real tracker ID when publishing.
+GitHub #1 — authenticated private project persistence (code merged in PR #5; hosted verification remains pending).

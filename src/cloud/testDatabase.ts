@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import type { Model, Project } from "../model";
 export const owner = "00000000-0000-4000-8000-000000000001";
 export const outsider = "00000000-0000-4000-8000-000000000002";
 export async function testDatabase() {
@@ -10,15 +11,12 @@ export async function testDatabase() {
     grant usage on schema auth to anon, authenticated;
     grant execute on function auth.uid() to anon, authenticated;
     insert into auth.users values ('${owner}',now()),('${outsider}',now());`);
-  await db.exec(
-    await readFile(
-      new URL(
-        "../../supabase/migrations/202609060001_projects.sql",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-  );
+  const migrations = new URL("../../supabase/migrations/", import.meta.url);
+  for (const name of (await readdir(migrations))
+    .filter((name) => name.endsWith(".sql"))
+    .sort()) {
+    await db.exec(await readFile(new URL(name, migrations), "utf8"));
+  }
   return db;
 }
 export async function asUser(db: PGlite, user: string | null) {
@@ -28,8 +26,8 @@ export async function asUser(db: PGlite, user: string | null) {
   ]);
   await db.exec(`set role ${user ? "authenticated" : "anon"}`);
 }
-export function fixture() {
-  const model = {
+export function fixture(): Project {
+  const model: Model = {
     factors: [
       {
         id: "a",

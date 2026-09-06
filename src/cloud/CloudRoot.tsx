@@ -4,10 +4,11 @@ import { get } from "idb-keyval";
 import { validateProject, type Project } from "../model";
 import { getCloudClient } from "./client";
 import { createProjectRepository, type CloudProject } from "./repository";
+import { SharedProject, type SharedControls } from "./SharedProject";
 import "./cloud.css";
 interface Props {
   renderLocal: (openCloud: () => void) => ReactNode;
-  renderProject: (document: Project, back: () => void) => ReactNode;
+  renderProject: (document: Project, controls: SharedControls) => ReactNode;
 }
 const errorMessage = (error: unknown) =>
   error instanceof Error
@@ -120,8 +121,16 @@ export function CloudRoot({ renderLocal, renderProject }: Props) {
     setLocal(true);
   };
   if (local) return renderLocal(() => setLocal(false));
-  if (selected)
-    return renderProject(selected.document, () => setSelected(null));
+  if (selected && client && userId)
+    return (
+      <SharedProject
+        client={client}
+        userId={userId}
+        project={selected}
+        onBack={() => setSelected(null)}
+        render={renderProject}
+      />
+    );
   const repository =
     client && userId ? createProjectRepository(client, userId) : null;
   return (

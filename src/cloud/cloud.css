@@ -172,6 +172,24 @@
   color: #923e29;
   margin: 15px 0;
 }
+.cloud-conflict {
+  position: fixed;
+  z-index: 40;
+  left: 72px;
+  right: 20px;
+  top: 72px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff3d6;
+  border: 1px solid #c89120;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px #17251d33;
+}
+.cloud-conflict strong {
+  margin-right: auto;
+}
 .cloud-empty {
   padding: 30px 0;
 }
