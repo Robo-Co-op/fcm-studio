@@ -24,6 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             onSaveBaseline={controls.onSaveBaseline}
             onSaveScenario={controls.onSaveScenario}
             onSaveRun={controls.onSaveRun}
+            requestAiProposal={controls.requestAiProposal}
           />
         )}
       />

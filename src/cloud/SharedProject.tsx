@@ -31,6 +31,7 @@ export interface SharedControls {
   onSaveBaseline: (model: Model) => Promise<void>;
   onSaveScenario: (scenario: Scenario) => Promise<void>;
   onSaveRun: (run: Run) => Promise<void>;
+  requestAiProposal: (projectId: string, instruction: string) => Promise<Response>;
 }
 
 interface Props {
@@ -246,6 +247,20 @@ export function SharedProject({
       saveHistory(() =>
         saveProjectRun(client, current.id, run, current.revision),
       ),
+    requestAiProposal: async (projectId, instruction) => {
+      const { data } = await client.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Sign in to request an AI proposal.");
+      return fetch("/api/draft", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ projectId, instruction }),
+        signal: AbortSignal.timeout(55000),
+      });
+    },
   };
   return (
     <>

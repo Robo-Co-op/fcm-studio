@@ -174,6 +174,7 @@ export default function App({
   onSaveBaseline,
   onSaveScenario,
   onSaveRun,
+  requestAiProposal,
 }: {
   initialProject?: Project;
   readOnly?: boolean;
@@ -187,6 +188,7 @@ export default function App({
   onSaveBaseline?: (model: Model) => Promise<void>;
   onSaveScenario?: (scenario: Scenario) => Promise<void>;
   onSaveRun?: (run: Run) => Promise<void>;
+  requestAiProposal?: (projectId: string, instruction: string) => Promise<Response>;
 }) {
   const [project, setProjectState] = useState<Project>(() =>
     clone(initialProject ?? demoProject()),
@@ -664,19 +666,22 @@ export default function App({
     setAiBusy(true);
     setProposal(null);
     try {
-      const response = await fetch("/api/draft", {
+      const draftInstruction =
+        instruction ||
+        "Suggest a useful participatory causal map with factors, relationships, and provisional weights.";
+      const response = requestAiProposal
+        ? await requestAiProposal(project.id, draftInstruction)
+        : await fetch("/api/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           agenda: project.agenda,
-          instruction:
-            instruction ||
-            "Suggest a useful participatory causal map with factors, relationships, and provisional weights.",
+          instruction: draftInstruction,
           revision: project.revision,
           model,
         }),
         signal: AbortSignal.timeout(55000),
-      });
+        });
       const data = (await response.json()) as {
         revision: number;
         model: Model;

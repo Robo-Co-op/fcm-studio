@@ -14,6 +14,23 @@ const string = (value, max) =>
   typeof value === "string" && value.trim().length > 0 && value.length <= max;
 const pair = (edge) => JSON.stringify([edge.source, edge.target]);
 
+// EuriaはOpenAI互換APIを提供する。キーとproduct IDはサーバー環境だけに置く。
+export function providerConfiguration(env) {
+  if (env.EURIA_API_KEY && env.EURIA_PRODUCT_ID && env.EURIA_MODEL)
+    return {
+      base: `https://api.infomaniak.com/2/ai/${encodeURIComponent(env.EURIA_PRODUCT_ID)}/openai/v1`,
+      key: env.EURIA_API_KEY,
+      model: env.EURIA_MODEL,
+    };
+  if (env.AI_MODEL && env.OPENAI_API_KEY)
+    return {
+      base: env.AI_BASE_URL ?? "https://api.openai.com/v1",
+      key: env.OPENAI_API_KEY,
+      model: env.AI_MODEL,
+    };
+  return null;
+}
+
 // 許可フィールドのみをコピーし、AIが出所を自己申告できないようにする。
 export function normalizeModel(value, original = null) {
   if (
@@ -120,7 +137,7 @@ export function createServer({
   timeoutMs = 45000,
 } = {}) {
   let requests = [];
-  const configured = Boolean(env.AI_MODEL && env.OPENAI_API_KEY);
+  const provider = providerConfiguration(env);
   return http.createServer(async (req, res) => {
     const origin = req.headers.origin;
     const reply = (status, data) => {
@@ -137,7 +154,7 @@ export function createServer({
     if (!/^((localhost|127\.0\.0\.1)(:\d+)?)$/.test(req.headers.host ?? ""))
       return reply(403, { error: "Local access only." });
     if (req.url === "/api/health" && req.method === "GET")
-      return reply(200, { configured });
+      return reply(200, { configured: Boolean(provider) });
     if (!ORIGINS.has(origin))
       return reply(403, { error: "Origin not allowed." });
     if (req.method === "OPTIONS" && req.url === "/api/draft") {
@@ -151,7 +168,7 @@ export function createServer({
     }
     if (req.url !== "/api/draft" || req.method !== "POST")
       return reply(404, { error: "Not found." });
-    if (!configured)
+    if (!provider)
       return reply(503, {
         error: "AI is not configured. Manual editing remains available.",
       });
@@ -197,7 +214,7 @@ export function createServer({
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const base = new URL(env.AI_BASE_URL ?? "https://api.openai.com/v1");
+      const base = new URL(provider.base);
       if (
         base.protocol !== "https:" &&
         !(
@@ -212,12 +229,12 @@ export function createServer({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+            Authorization: `Bearer ${provider.key}`,
           },
           redirect: "error",
           signal: controller.signal,
           body: JSON.stringify({
-            model: env.AI_MODEL,
+            model: provider.model,
             temperature: 0.2,
             response_format: { type: "json_object" },
             messages: [

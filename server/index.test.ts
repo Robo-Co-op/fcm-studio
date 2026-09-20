@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Server } from "node:http";
-import { createServer, normalizeModel } from "./index.mjs";
+import { createServer, normalizeModel, providerConfiguration } from "./index.mjs";
 
 const model = {
   factors: [
@@ -65,6 +65,19 @@ const provider = (proposal: unknown) =>
     );
 
 describe("optional AI service", () => {
+  it("uses Euria's OpenAI-compatible endpoint only from server environment", () => {
+    const provider = providerConfiguration({
+      EURIA_API_KEY: "server-only-test-key",
+      EURIA_PRODUCT_ID: "12345",
+      EURIA_MODEL: "swiss-ai/Apertus-v1.5-70B",
+    });
+    expect(provider).toEqual({
+      base: "https://api.infomaniak.com/2/ai/12345/openai/v1",
+      key: "server-only-test-key",
+      model: "swiss-ai/Apertus-v1.5-70B",
+    });
+    expect(providerConfiguration({ EURIA_API_KEY: "x" })).toBeNull();
+  });
   it("reports missing configuration without blocking manual features", async () => {
     const url = await start({ env: {} });
     expect(await (await fetch(`${url}/api/health`)).json()).toEqual({
