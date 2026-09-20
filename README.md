@@ -34,7 +34,7 @@ Excel import shows the detected range, labels, direction convention, and validat
 - Importing Excel establishes an immutable baseline. For a new empty project, the first simulation captures the baseline. Later edits change the working model. To establish a different baseline, export Excel and import it as a new project.
 - Synchronization is between the in-app map and matrix. External Excel files do not update live.
 - Map image export captures the current viewport; fit the map before exporting to include more of it.
-- There are no accounts, real-time multi-user editing, or public hosted AI backend in this release. No production service is deployed by these setup commands.
+- ローカルモードではアカウントなしで使える。Supabaseを設定したクラウドモードではGoogleログイン、プロジェクト単位のアクセス制御、編集者・閲覧者の手動招待リンク、共同編集、共有研究履歴を利用できる。公開環境はまだ構成していないため、リポジトリのクローンだけではクラウド機能は有効にならない。
 
 See [METHODOLOGY.md](METHODOLOGY.md) for the update equation, reproducibility details, and interpretation limits.
 
@@ -57,6 +57,12 @@ Do not put actual keys in source files, `.env` files, screenshots, or commits. C
 AI requests send the agenda, editing instruction, and current model to the configured provider. Obtain the appropriate agreement before submitting participant material. The original workbook file itself is not uploaded by import. Automated AI tests use mocked provider responses; they do not establish live-provider compatibility.
 
 The local service is designed for loopback use and has host/origin checks, validation, and a small in-memory rate limit. Public deployment requires a separate authentication, authorization, privacy, and operations design.
+
+## Optional cloud collaboration
+
+Apply the checked-in Supabase migrations in order, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the hosting provider. Never expose a Supabase service role key in a `VITE_` variable. Configure Google OAuth and the deployed site's redirect URL in Supabase before asking collaborators to sign in.
+
+Project owners create manual invitation links for a confirmed email address. The app places the token after `#invite=` and removes it from the address bar immediately; it does not send email. Recipients must authenticate with that confirmed address before accepting. Baselines, saved scenarios, and simulation runs are append-only shared history. Loading a baseline or scenario still performs a revision-checked model update, so a stale selection cannot silently overwrite a collaborator's work.
 
 ## Development
 

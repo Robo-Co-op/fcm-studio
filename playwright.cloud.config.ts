@@ -3,7 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 // 外部 Supabase 境界だけを差し替える描画検証。実 OAuth / RLS の証明には使わない。
 export default defineConfig({
   testDir: "./tests",
-  testMatch: ["cloud-auth.spec.ts", "cloud-collaboration.spec.ts"],
+  testMatch: [
+    "cloud-auth.spec.ts",
+    "cloud-collaboration.spec.ts",
+    "cloud-invitations.spec.ts",
+  ],
   timeout: 30_000,
   expect: { timeout: 5000 },
   retries: 0,

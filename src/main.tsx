@@ -15,11 +15,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             key={document.id}
             initialProject={document}
             readOnly={controls.readOnly}
+            sharedRole={controls.role}
             onBack={controls.onBack}
             onProjectChange={controls.onChange}
             cloudStatus={controls.status}
             onCloudUndo={controls.onUndo}
             canCloudUndo={controls.canUndo}
+            onSaveBaseline={controls.onSaveBaseline}
+            onSaveScenario={controls.onSaveScenario}
+            onSaveRun={controls.onSaveRun}
           />
         )}
       />
