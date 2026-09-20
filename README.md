@@ -62,6 +62,8 @@ The local service is designed for loopback use and has host/origin checks, valid
 
 Apply the checked-in Supabase migrations in order, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the hosting provider. Never expose a Supabase service role key in a `VITE_` variable. Configure Google OAuth and the deployed site's redirect URL in Supabase before asking collaborators to sign in.
 
+For the complete Vercel, Supabase, and Euria setup procedure, see [the deployment guide](docs/cloud/DEPLOYMENT.md).
+
 Project owners create manual invitation links for a confirmed email address. The app places the token after `#invite=` and removes it from the address bar immediately; it does not send email. Recipients must authenticate with that confirmed address before accepting. Baselines, saved scenarios, and simulation runs are append-only shared history. Loading a baseline or scenario still performs a revision-checked model update, so a stale selection cannot silently overwrite a collaborator's work.
 
 ## Development

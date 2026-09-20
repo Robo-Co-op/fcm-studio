@@ -1,15 +1,15 @@
-# 04 — Publish authenticated OpenRouter proposals on free hosting
+# 04 — Publish authenticated Euria proposals on free hosting
 
 Type: AFK. Covers user story 12 in the cloud PRD.
 
 ## What to build
 
-Deploy the application to free Vercel/Supabase resources and expose authenticated OpenRouter proposals through server functions. Evaluate inexpensive candidate models with synthetic FCM tasks using at most USD 1 of existing OpenRouter balance. Integrate reviewed proposals with shared command acceptance.
+Deploy the application to free Vercel/Supabase resources and expose authenticated Infomaniak AI Services / Euria proposals through server functions. Evaluate an available model with synthetic FCM tasks within the displayed existing credit balance. Integrate reviewed proposals with shared command acceptance.
 
 ## Acceptance criteria
 
 - [ ] Hosted application supports Google login, project creation/loading, invitation acceptance, and two-session editing on the deployment domain.
-- [ ] Server verifies identity and editor/owner membership before loading authoritative project data and calling OpenRouter.
+- [x] Server verifies identity and editor/owner membership before loading authoritative project data and calling Euria.
 - [ ] Provider key never reaches client bundles, logs, repository, or exported research; model/provider choices use a server allowlist.
 - [ ] Durable usage reservation prevents concurrent requests from bypassing per-user/project limits; capped input/output and provider timeout fail safely.
 - [ ] Evaluation uses synthetic prompts, records candidate IDs/prices, validity and FCM instruction adherence, and spends no more than USD 1; do not purchase credits or upgrade hosting.
