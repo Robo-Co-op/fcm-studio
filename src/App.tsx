@@ -44,7 +44,7 @@ import {
   validateModel,
   validateProject,
 } from "./model";
-import type { Model, Project, Run, SimulationResult } from "./model";
+import type { Model, Project, Run, Scenario, SimulationResult } from "./model";
 import { demoProject } from "./demo";
 import { describeChanges } from "./proposals";
 import type { ImportPreview } from "./excel";
@@ -82,6 +82,10 @@ function download(data: BlobPart, name: string, type = "application/json") {
 function safeName(name: string) {
   return name.replace(/[^a-z0-9-]+/gi, "-").slice(0, 80) || "fcm-project";
 }
+const cloudErrorMessage = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : "The cloud request failed. Please try again.";
 function WeightCell({
   value,
   label,
@@ -160,21 +164,29 @@ function WeightCell({
 export default function App({
   initialProject,
   readOnly = false,
+  sharedRole,
   onCloud,
   onBack,
   onProjectChange,
   cloudStatus,
   onCloudUndo,
   canCloudUndo = false,
+  onSaveBaseline,
+  onSaveScenario,
+  onSaveRun,
 }: {
   initialProject?: Project;
   readOnly?: boolean;
+  sharedRole?: "owner" | "editor" | "viewer";
   onCloud?: () => void;
   onBack?: () => void;
   onProjectChange?: (next: Project) => void;
   cloudStatus?: string;
   onCloudUndo?: () => void;
   canCloudUndo?: boolean;
+  onSaveBaseline?: (model: Model) => Promise<void>;
+  onSaveScenario?: (scenario: Scenario) => Promise<void>;
+  onSaveRun?: (run: Run) => Promise<void>;
 }) {
   const [project, setProjectState] = useState<Project>(() =>
     clone(initialProject ?? demoProject()),
@@ -567,8 +579,14 @@ export default function App({
     const baseline = project.baseline.factors.length
       ? clone(project.baseline)
       : clone(snapshot);
-    if (!project.baseline.factors.length)
-      setProject((p) => ({ ...p, baseline: clone(snapshot) }));
+    if (!project.baseline.factors.length) {
+      if (initialProject && sharedRole !== "viewer" && onSaveBaseline)
+        void onSaveBaseline(clone(snapshot)).catch((error: unknown) =>
+          notify(`Baseline was not saved: ${cloudErrorMessage(error)}`),
+        );
+      else if (!initialProject)
+        setProject((p) => ({ ...p, baseline: clone(snapshot) }));
+    }
     const w = new Worker(new URL("./simulation.worker.ts", import.meta.url), {
       type: "module",
     });
@@ -596,7 +614,15 @@ export default function App({
         };
         setResult(run);
         setStep(run.result.iterations);
-        setProject((p) => ({ ...p, runs: [...p.runs.slice(-9), run] }));
+        if (initialProject) {
+          if (sharedRole !== "viewer" && onSaveRun)
+            void onSaveRun(run)
+              .then(() => notify("Simulation saved to shared history."))
+              .catch((error: unknown) =>
+                notify(`Simulation was not saved: ${cloudErrorMessage(error)}`),
+              );
+          else notify("Simulation result stays in this browser session.");
+        } else setProject((p) => ({ ...p, runs: [...p.runs.slice(-9), run] }));
       }
       w.terminate();
     };
@@ -686,20 +712,26 @@ export default function App({
       return;
     }
     if (name?.trim()) {
-      setProject((p) => ({
-        ...p,
-        scenarios: [
-          ...p.scenarios,
-          {
-            id: id(),
-            name: name.trim(),
-            model: clone(model),
-            initial: clone(initial),
-            clamped: clone(clamped),
-          },
-        ],
-      }));
-      notify("Scenario saved on this device.");
+      const scenario: Scenario = {
+        id: id(),
+        name: name.trim(),
+        model: clone(model),
+        initial: clone(initial),
+        clamped: clone(clamped),
+      };
+      if (initialProject && onSaveScenario)
+        void onSaveScenario(scenario)
+          .then(() => notify("Scenario saved to shared history."))
+          .catch((error: unknown) =>
+            notify(`Scenario was not saved: ${cloudErrorMessage(error)}`),
+          );
+      else {
+        setProject((p) => ({
+          ...p,
+          scenarios: [...p.scenarios, scenario],
+        }));
+        notify("Scenario saved on this device.");
+      }
     }
   };
   const exportFile = async (kind: string) => {
@@ -1191,7 +1223,9 @@ export default function App({
             <fieldset
               className="inspector-content"
               disabled={
-                readOnly || (Boolean(initialProject) && panel !== "inspector")
+                panel === "inspector"
+                  ? readOnly
+                  : panel === "ai" && Boolean(initialProject)
               }
               style={{ border: 0, margin: 0, minWidth: 0 }}
             >
@@ -1456,12 +1490,17 @@ export default function App({
                     against the original baseline at 0.5.
                   </p>
                   <div className="scenario-buttons">
-                    <button className="btn" onClick={saveScenario}>
+                    <button
+                      className="btn"
+                      onClick={saveScenario}
+                      disabled={readOnly}
+                    >
                       Save scenario
                     </button>
                     <button
                       className="icon-btn"
                       title="Restore baseline"
+                      disabled={readOnly}
                       onClick={() => {
                         edit(clone(project.baseline));
                         setInitial({});

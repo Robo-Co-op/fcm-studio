@@ -35,3 +35,13 @@ Supabaseにはmigrationを適用し、Google OAuthクライアント、Supabase 
 - Sync: Supabase Realtimeの更新購読を登録し、focus・online・10秒間隔でも認可済みデータを再取得。取消検出時は開いていた研究データを画面から除去。
 - Browser: 外部Supabase境界を模擬した2セッション、同一revision競合、viewer、offline/reconnect、undo、詳細更新、権限取消を検証。本番Realtimeの証明ではない。
 - Improve: 途中で一部担当がworkspace credit不足になった後、独立checkerを再実行。初回FAILで指摘された同一セル競合、一括paste、取消後SELECT拒否の証明を追加し、再判定PASS。決定的ゲート122件、20件のコマンド攻撃表、クラウド画面12件も成功。
+
+## 第3スライス
+
+- Plan: GitHub #3。招待リンクは手動共有に限定し、プロジェクトを唯一のテナント境界として維持する。
+- Build: 所有者だけが作成・取消・ロール変更・削除できる。招待はメール束縛、確認済み認証メール、SHA-256保存、7日失効、一回だけのトランザクション受諾で保護する。
+- History: baseline、scenario、runは不変のプロジェクト履歴として保存し、所有者・編集者だけが追加できる。閲覧者のシミュレーションはブラウザ内だけに残る。
+- Gate: `npm run gate` は lint、137件のunit/serviceテスト、production buildを成功した。
+- Browser: 実Chromeで通常8件、クラウド共同編集17件が成功。後者は所有者の招待作成・取消、編集者の共有履歴、閲覧者のローカル実行、失敗後の再試行、履歴更新を含む。
+- Improve: security、test、simplification の独立レビューはいずれもPASS。役割変更・削除の追記監査ログは将来の低優先度改善として残す。
+- 境界: PGliteの実PostgreSQL契約とモック済みSupabase境界を検証した。本番Supabase、Google OAuth、Realtime、Vercelは資格情報を安全に利用できるまで未検証である。

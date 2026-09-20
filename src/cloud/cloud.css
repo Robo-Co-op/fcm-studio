@@ -190,8 +190,163 @@
 .cloud-conflict strong {
   margin-right: auto;
 }
+.cloud-history-error {
+  position: fixed;
+  z-index: 39;
+  right: 20px;
+  bottom: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #c89120;
+  border-radius: 8px;
+  background: #fff3d6;
+  color: #6c5116;
+  box-shadow: 0 8px 30px #17251d22;
+}
+.cloud-history-error button {
+  border: 1px solid #c89120;
+  border-radius: 7px;
+  background: #fffef8;
+  padding: 7px 10px;
+}
 .cloud-empty {
   padding: 30px 0;
+}
+.cloud-members-open {
+  position: fixed;
+  z-index: 35;
+  top: 72px;
+  right: 20px;
+  border: 1px solid #cad7cb;
+  border-radius: 9px;
+  background: #fffef8;
+  padding: 11px 16px;
+  color: #294a3d;
+  cursor: pointer;
+  font: inherit;
+  box-shadow: 0 5px 18px #274b351a;
+}
+.cloud-members {
+  position: fixed;
+  z-index: 50;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  width: min(520px, calc(100vw - 40px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid #dce3d6;
+  border-radius: 18px;
+  background: #fffef9;
+  color: #253c35;
+  box-shadow: 0 18px 60px #17251d40;
+  font-family: Inter, system-ui, sans-serif;
+}
+.cloud-members button,
+.cloud-members select {
+  border: 1px solid #cad7cb;
+  border-radius: 9px;
+  background: #fffef8;
+  padding: 9px 12px;
+  color: #294a3d;
+  cursor: pointer;
+  font: inherit;
+}
+.cloud-members button:disabled,
+.cloud-members select:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.cloud-members-heading,
+.cloud-member-list li,
+.cloud-member-actions,
+.cloud-invite-link > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cloud-members-heading {
+  justify-content: space-between;
+}
+.cloud-members h2 {
+  margin: 7px 0 0;
+  font-size: 21px;
+}
+.cloud-members h3 {
+  margin: 24px 0 10px;
+  font-size: 15px;
+}
+.cloud-invite-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 20px 0;
+}
+.cloud-invite-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.cloud-invite-form input,
+.cloud-invite-link input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cfdbcd;
+  border-radius: 8px;
+  background: white;
+  color: #253c35;
+  font: inherit;
+}
+.cloud-invite-form .cloud-primary {
+  grid-column: 1 / -1;
+  background: #2c5b46;
+  color: white;
+}
+.cloud-invite-link {
+  padding: 15px;
+  border: 1px solid #c7d9c8;
+  border-radius: 10px;
+  background: #eef5ea;
+}
+.cloud-invite-link p,
+.cloud-members section > p {
+  margin: 6px 0 10px;
+  color: #64776c;
+  font-size: 13px;
+}
+.cloud-invite-link input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.cloud-member-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cloud-member-list li {
+  justify-content: space-between;
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 1px solid #e3e8dc;
+}
+.cloud-member-list code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.cloud-member-list small {
+  display: block;
+  margin-top: 4px;
+  color: #728378;
 }
 .cloud-page :focus-visible {
   outline: 3px solid #77a889;
@@ -209,5 +364,12 @@
   }
   .cloud-card {
     padding: 22px;
+  }
+  .cloud-members {
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+    padding: 18px;
   }
 }

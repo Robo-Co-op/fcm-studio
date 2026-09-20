@@ -1,17 +1,36 @@
-import { useEffect, useMemo, useReducer } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Project } from "../model";
+import type { Model, Project, Run, Scenario } from "../model";
 import { parseCloudProject, type CloudProject } from "./repository";
 import { SharedSession, type PendingCommand } from "./shared-session";
+import { ProjectMembers } from "./ProjectMembers";
+import {
+  loadProjectHistory,
+  saveProjectBaseline,
+  saveProjectRun,
+  saveProjectScenario,
+  type ProjectHistory,
+} from "./history";
 
 export interface SharedControls {
   readOnly: boolean;
+  role: CloudProject["role"];
   status: string;
   onChange: (next: Project) => void;
   onUndo: () => void;
   canUndo: boolean;
   onBack: () => void;
+  onSaveBaseline: (model: Model) => Promise<void>;
+  onSaveScenario: (scenario: Scenario) => Promise<void>;
+  onSaveRun: (run: Run) => Promise<void>;
 }
 
 interface Props {
@@ -41,6 +60,13 @@ export function SharedProject({
   render,
 }: Props) {
   const [, update] = useReducer((value) => value + 1, 0);
+  const [history, setHistory] = useState<ProjectHistory>({
+    baseline: null,
+    scenarios: [],
+    runs: [],
+  });
+  const [historyError, setHistoryError] = useState("");
+  const historyGeneration = useRef(0);
   const session = useMemo(
     () =>
       new SharedSession(
@@ -79,8 +105,31 @@ export function SharedProject({
     [client, project.id, userId],
   );
 
+  const refreshHistory = useCallback(async () => {
+    const ticket = ++historyGeneration.current;
+    try {
+      const next = await loadProjectHistory(client, project.id);
+      if (ticket !== historyGeneration.current) return;
+      setHistory(next);
+      setHistoryError("");
+    } catch {
+      if (ticket === historyGeneration.current)
+        setHistoryError("Shared research history is temporarily unavailable.");
+    }
+  }, [client, project.id]);
+
   useEffect(() => {
-    const refresh = () => void session.refresh();
+    void refreshHistory();
+    return () => {
+      historyGeneration.current++;
+    };
+  }, [refreshHistory]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void session.refresh();
+      void refreshHistory();
+    };
     const online = () => {
       session.setOnline(true);
       refresh();
@@ -102,6 +151,36 @@ export function SharedProject({
         },
         refresh,
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "project_baselines",
+          filter: `project_id=eq.${project.id}`,
+        },
+        () => void refreshHistory(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "project_scenarios",
+          filter: `project_id=eq.${project.id}`,
+        },
+        () => void refreshHistory(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "project_runs",
+          filter: `project_id=eq.${project.id}`,
+        },
+        () => void refreshHistory(),
+      )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") refresh();
       });
@@ -114,7 +193,7 @@ export function SharedProject({
       window.clearInterval(timer);
       void client.removeChannel(channel);
     };
-  }, [client, project.id, session]);
+  }, [client, project.id, refreshHistory, session]);
 
   if (!session.state.current && session.state.error)
     return (
@@ -125,8 +204,27 @@ export function SharedProject({
       </main>
     );
   const current = session.state.current ?? project;
+  const scenarioIds = new Set(current.document.scenarios.map(({ id }) => id));
+  const runIds = new Set(current.document.runs.map(({ id }) => id));
+  const document: Project = {
+    ...current.document,
+    baseline: history.baseline ?? current.document.baseline,
+    scenarios: [
+      ...current.document.scenarios,
+      ...history.scenarios.filter(({ id }) => !scenarioIds.has(id)),
+    ],
+    runs: [
+      ...current.document.runs,
+      ...history.runs.filter(({ id }) => !runIds.has(id)),
+    ],
+  };
+  const saveHistory = async (operation: () => Promise<void>) => {
+    await operation();
+    await refreshHistory();
+  };
   const controls: SharedControls = {
     readOnly: session.readOnly,
+    role: current.role,
     status: session.state.pending
       ? "Saving to cloud…"
       : session.state.error
@@ -138,9 +236,22 @@ export function SharedProject({
     onUndo: () => void session.undo(),
     canUndo: session.canUndo,
     onBack,
+    onSaveBaseline: (model) =>
+      saveHistory(() => saveProjectBaseline(client, current.id, model)),
+    onSaveScenario: (scenario) =>
+      saveHistory(() =>
+        saveProjectScenario(client, current.id, scenario, current.revision),
+      ),
+    onSaveRun: (run) =>
+      saveHistory(() =>
+        saveProjectRun(client, current.id, run, current.revision),
+      ),
   };
   return (
     <>
+      {current.role === "owner" && (
+        <ProjectMembers client={client} projectId={current.id} />
+      )}
       {session.state.error && (
         <div className="cloud-conflict" role="alert">
           <strong>{session.state.error}</strong>
@@ -176,7 +287,13 @@ export function SharedProject({
           <button onClick={() => void session.refresh()}>Load latest</button>
         </div>
       )}
-      {render(current.document, controls)}
+      {historyError && (
+        <div className="cloud-history-error" role="alert">
+          {historyError}
+          <button onClick={() => void refreshHistory()}>Retry</button>
+        </div>
+      )}
+      {render(document, controls)}
     </>
   );
 }

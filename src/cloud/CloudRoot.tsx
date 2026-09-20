@@ -5,6 +5,11 @@ import { validateProject, type Project } from "../model";
 import { getCloudClient } from "./client";
 import { createProjectRepository, type CloudProject } from "./repository";
 import { SharedProject, type SharedControls } from "./SharedProject";
+import {
+  acceptInvitation,
+  captureInvitationToken,
+  clearInvitationToken,
+} from "./invitations";
 import "./cloud.css";
 interface Props {
   renderLocal: (openCloud: () => void) => ReactNode;
@@ -13,7 +18,12 @@ interface Props {
 const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
-    : "The cloud request failed. Please try again.";
+    : error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof error.message === "string"
+      ? error.message
+      : "The cloud request failed. Please try again.";
 export function CloudRoot({ renderLocal, renderProject }: Props) {
   const [client] = useState(getCloudClient);
   const [local, setLocal] = useState(!client);
@@ -25,9 +35,25 @@ export function CloudRoot({ renderLocal, renderProject }: Props) {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [agenda, setAgenda] = useState("");
+  const [pendingInvitation, setPendingInvitation] = useState<string | null>(
+    null,
+  );
+  const [invitationNotice, setInvitationNotice] = useState("");
+  const [invitationFailed, setInvitationFailed] = useState(false);
+  const [invitationRetry, setInvitationRetry] = useState(0);
   const generation = useRef(0);
+  const attemptedInvitation = useRef<string | null>(null);
   const authUserId = useRef<string | null>(null);
   const userId = session?.user.id;
+  useEffect(() => {
+    const captured = captureInvitationToken(
+      new URL(window.location.href),
+      window.sessionStorage,
+    );
+    setPendingInvitation(captured.token);
+    if (captured.cleanUrl)
+      window.history.replaceState(null, "", captured.cleanUrl);
+  }, []);
   useEffect(() => {
     if (!client) return;
     let active = true;
@@ -93,6 +119,60 @@ export function CloudRoot({ renderLocal, renderProject }: Props) {
       generation.current++;
     };
   }, [client, userId, local]);
+  useEffect(() => {
+    if (
+      !client ||
+      !session ||
+      local ||
+      !pendingInvitation ||
+      attemptedInvitation.current === pendingInvitation
+    )
+      return;
+    attemptedInvitation.current = pendingInvitation;
+    setBusy(true);
+    setError("");
+    setInvitationNotice("Accepting your project invitation…");
+    setInvitationFailed(false);
+    void (async () => {
+      try {
+        let projectId: string;
+        try {
+          projectId = await acceptInvitation(client, pendingInvitation);
+        } catch (cause) {
+          setError(errorMessage(cause));
+          setInvitationNotice("");
+          setInvitationFailed(true);
+          return;
+        }
+        clearInvitationToken(window.sessionStorage);
+        setPendingInvitation(null);
+        const repository = createProjectRepository(client, session.user.id);
+        try {
+          const project = await repository.load(projectId);
+          setProjects((previous) => [
+            project,
+            ...previous.filter((value) => value.id !== project.id),
+          ]);
+          setSelected(project);
+          setInvitationNotice(
+            "Invitation accepted. Opening the shared project…",
+          );
+        } catch (cause) {
+          setError(errorMessage(cause));
+          setInvitationNotice(
+            "Invitation accepted, but the project could not be opened automatically.",
+          );
+          try {
+            setProjects(await repository.list());
+          } catch {
+            // 再読込すれば受諾済みメンバーシップから復旧できる。
+          }
+        }
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [client, invitationRetry, local, pendingInvitation, session]);
   const work = async (operation: () => Promise<CloudProject>) => {
     const ticket = ++generation.current;
     setBusy(true);
@@ -159,8 +239,19 @@ export function CloudRoot({ renderLocal, renderProject }: Props) {
         {error && (
           <div role="alert" className="cloud-error">
             {error}
+            {invitationFailed && pendingInvitation && (
+              <button
+                onClick={() => {
+                  attemptedInvitation.current = null;
+                  setInvitationRetry((value) => value + 1);
+                }}
+              >
+                Retry invitation
+              </button>
+            )}
           </div>
         )}
+        {invitationNotice && <p role="status">{invitationNotice}</p>}
         {!client ? (
           <section className="cloud-card">
             <h2>Cloud workspace is not configured</h2>
@@ -179,6 +270,12 @@ export function CloudRoot({ renderLocal, renderProject }: Props) {
               Sign in to create private cloud projects and reopen them on
               another device.
             </p>
+            {pendingInvitation && (
+              <p className="cloud-note">
+                Sign in with the invited email address to join the shared
+                project.
+              </p>
+            )}
             <button
               className="cloud-primary"
               disabled={busy}

@@ -1,7 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["**/cloud-auth.spec.ts", "**/cloud-collaboration.spec.ts"],
+  testIgnore: [
+    "**/cloud-auth.spec.ts",
+    "**/cloud-collaboration.spec.ts",
+    "**/cloud-invitations.spec.ts",
+  ],
   timeout: 30_000,
   expect: { timeout: 5000 },
   fullyParallel: true,

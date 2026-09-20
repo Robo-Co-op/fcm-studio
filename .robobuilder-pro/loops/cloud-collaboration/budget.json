@@ -8,9 +8,9 @@
   "paidPlansAuthorized": false,
   "maxIterations": 12,
   "maxAttemptsPerItem": 3,
-  "iterationsUsed": 0,
+  "iterationsUsed": 3,
   "agentTokenCost": null,
   "agentTokenCostNote": "Runtime does not expose priced token usage; no invented estimate.",
   "unattendedExecution": false,
-  "updatedAt": "2026-09-06T12:14:33+09:00"
+  "updatedAt": "2026-09-20T17:30:00+09:00"
 }
