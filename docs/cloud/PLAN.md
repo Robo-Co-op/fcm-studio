@@ -6,7 +6,7 @@ Researchers currently edit one browser-local project. They cannot sign in from a
 
 ## Solution
 
-Publish the existing application on Vercel with Supabase Google OAuth authentication, private project workspaces, email-bound invitation links, and synchronized editing. Retain the local application as a separate offline workspace. Use OpenRouter for optional reviewed AI proposals, with server-side access controls and spending limits.
+Publish the existing application on Vercel with Supabase Google OAuth authentication, private project workspaces, email-bound invitation links, and synchronized editing. Retain the local application as a separate offline workspace. Use Infomaniak AI Services / Euria for optional reviewed AI proposals, with server-side access controls and spending limits.
 
 ## User Stories
 
@@ -35,8 +35,8 @@ Publish the existing application on Vercel with Supabase Google OAuth authentica
 - **Realtime:** subscribe to committed project revisions and fetch an authorized snapshot; refresh after reconnect. Keep local pending edits separate from acknowledged state. Cloud editing is online-only initially. Clear in-memory cloud data on logout and stop editing after authorization failure; cache keys, if introduced, include user and project identity.
 - **Research history:** baseline, scenarios, and runs are immutable project-scoped records with author/server timestamp. Establish an empty project's baseline once atomically; retain run snapshots and algorithm/settings. Loading a scenario or baseline is an explicit shared model change with revision checks. Do not retain the current automatic deletion of all but ten runs in shared history.
 - **Invitations:** owners create a 7-day, single-use random link bound to normalized verified email and editor/viewer role. Store only a token hash; consume it transactionally, preventing reuse, expired/revoked acceptance, wrong-email acceptance, and role escalation. Display a copyable link; this task sends no invitation messages. No owner transfer or last-owner removal in this release.
-- **AI:** authenticated Vercel functions verify editor/owner membership and fetch authoritative project data. OpenRouter key and model allowlist remain server-side. Reserve durable per-user/project usage before requests, cap input/output, handle provider failure without model changes, and validate output. Proposal acceptance uses the same revision-checked command interface.
-- **Hosting and cost:** use free Vercel and Supabase capacity; do not purchase or upgrade. OpenRouter evaluation may consume at most USD 1 of the existing balance. Select a configured allowlisted model using current price and synthetic FCM evaluation results; do not label quality as verified before evaluation. Record the model ID and measured result at release, and fail closed when its budget is unavailable.
+- **AI:** authenticated Vercel functions verify editor/owner membership and fetch authoritative project data. Euria API key, product ID, and model remain server-side. Reserve durable per-user/project usage before requests, cap input/output, handle provider failure without model changes, and validate output. Proposal acceptance uses the same revision-checked command interface.
+- **Hosting and cost:** use free Vercel and Supabase capacity; do not purchase or upgrade. Evaluate an available Euria model only within the product's displayed existing credit balance. Select a configured allowlisted model using current price and synthetic FCM evaluation results; do not label quality as verified before evaluation. Record the model ID and measured result at release, and fail closed when its budget is unavailable.
 
 ## Testing Decisions
 
@@ -51,6 +51,6 @@ Organization billing, subscriptions, purchased hosting, invitation email sending
 1. **AFK — authenticated dashboard and saved read-only cloud project**; no dependency; stories 1–5.
 2. **AFK — safe shared map/matrix editing**; depends on 1; stories 6–7.
 3. **AFK — invitations, roles, and research history**; depends on 2; stories 8–11.
-4. **AFK — hosted OpenRouter proposals and release**; depends on 3; story 12.
+4. **AFK — hosted Euria proposals and release**; depends on 3; story 12.
 
 The dedicated planning agent read and applied the installed RoboBuilder Lite plan instructions (orient, PRD, vertical issues). Orientation used direct inspection of the existing application, model, AI service, and tests. Design grilling was already completed by the parent agent and confirmed choices are incorporated here. No native slash/Skill invocation occurred. Issue files are prepared for publication; they are not evidence that GitHub issues already exist. No implementation or deployment is claimed by this planning stage.

@@ -25,7 +25,7 @@ Vite公開設定は `VITE_SUPABASE_URL` と `VITE_SUPABASE_PUBLISHABLE_KEY`。�
 Supabaseにはmigrationを適用し、Google OAuthクライアント、Supabase callback URI、公開サイトのredirect URLを設定する。
 秘密値は1Passwordからプロセス内で取得し、環境ファイルやGitに保存しない。
 
-現時点では1Password CLIの認証は確認済み。利用可能な保管庫から、本アプリ向けSupabase管理トークン、Vercel APIトークン、OpenRouterキーは特定できていない。
+この実行環境では `op`、`vercel`、`supabase` CLI を利用できない。Euria API製品ID・APIキー、Supabaseプロジェクト、Vercel権限は安全に利用できる状態を確認していない。
 
 ## 第2スライス
 
