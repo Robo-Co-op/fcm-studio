@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { DemoCloudStore, createDemoControls } from "./demo-store";
+import {
+  DemoCloudStore,
+  createDemoControls,
+  createDemoInvite,
+  generateDemoProposal,
+} from "./demo-store";
 
 it("starts signed out and signs in a demo user on demand", () => {
   const store = new DemoCloudStore();
@@ -73,12 +78,29 @@ it("routes onChange through the store so the document is saved", () => {
   expect(store.getProject(project.id)!.document.name).toBe("Via controls");
 });
 
-it("resolves requestAiProposal with a not-yet-available response in this slice", async () => {
+it("resolves requestAiProposal with a mock proposal built from the instruction", async () => {
   const store = new DemoCloudStore();
   store.signIn();
   const [project] = store.listProjects();
   const controls = createDemoControls(store, project, () => {});
-  const response = await controls.requestAiProposal(project.id, "test");
+  const response = await controls.requestAiProposal(
+    project.id,
+    "grow volunteer turnout",
+  );
+  expect(response.ok).toBe(true);
+  const data = (await response.json()) as { model: { factors: unknown[] }; summary: string };
+  expect(data.model.factors.length).toBe(
+    project.document.model.factors.length + 1,
+  );
+  expect(data.summary).toMatch(/volunteer turnout/i);
+});
+
+it("resolves requestAiProposal with a 404-style error for an unknown project id", async () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const controls = createDemoControls(store, project, () => {});
+  const response = await controls.requestAiProposal("does-not-exist", "test");
   expect(response.ok).toBe(false);
 });
 
@@ -260,4 +282,116 @@ it("returns undefined for getProject with an unknown id, and mutating a listed p
   expect(store.getProject(project.id)!.document.name).not.toBe(
     "Mutated locally only",
   );
+});
+
+it("switches a demo project's role so the demo can preview each permission level", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  expect(project.role).toBe("owner");
+  store.setRole(project.id, "viewer");
+  expect(store.getProject(project.id)!.role).toBe("viewer");
+});
+
+it("creates a demo invite link bound to a role, with a fresh token each time", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const first = createDemoInvite(project, "editor");
+  const second = createDemoInvite(project, "editor");
+  expect(first.role).toBe("editor");
+  expect(first.url).toContain("editor");
+  expect(first.url).not.toBe(second.url);
+});
+
+it("generates a mock AI proposal that adds a factor derived from the instruction and summarizes the change", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const proposal = generateDemoProposal(
+    project.document,
+    "Add a factor for volunteer turnout",
+  );
+  expect(proposal.model.factors.length).toBe(
+    project.document.model.factors.length + 1,
+  );
+  expect(proposal.summary.length).toBeGreaterThan(0);
+  expect(proposal.summary).toMatch(/volunteer turnout/i);
+});
+
+it("falls back to a generic proposal summary when the instruction is blank", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const proposal = generateDemoProposal(project.document, "");
+  expect(proposal.model.factors.length).toBe(
+    project.document.model.factors.length + 1,
+  );
+  expect(proposal.summary.length).toBeGreaterThan(0);
+});
+
+it("does nothing when setRole is called with an unknown project id", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  expect(() => store.setRole("does-not-exist", "viewer")).not.toThrow();
+  expect(store.getProject(project.id)!.role).toBe(project.role);
+});
+
+it("adds no relationship when generating a proposal for a model with no existing factors", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const emptyDocument = {
+    ...project.document,
+    model: { factors: [], relationships: [] },
+  };
+  const proposal = generateDemoProposal(emptyDocument, "seed factor");
+  expect(proposal.model.factors.length).toBe(1);
+  expect(proposal.model.relationships.length).toBe(0);
+});
+
+it("truncates the generated factor label to 60 characters for a long instruction", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const longInstruction =
+    "This is a very long free-text instruction that goes well past the sixty character label limit for a generated demo factor";
+  const proposal = generateDemoProposal(project.document, longInstruction);
+  const newFactor =
+    proposal.model.factors[proposal.model.factors.length - 1];
+  expect(newFactor.label.length).toBe(60);
+  expect(newFactor.label.endsWith("...")).toBe(true);
+});
+
+it("does not truncate a factor label that is exactly 60 characters", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const exactInstruction = "a".repeat(60);
+  const proposal = generateDemoProposal(project.document, exactInstruction);
+  const newFactor =
+    proposal.model.factors[proposal.model.factors.length - 1];
+  expect(newFactor.label).toBe(exactInstruction);
+  expect(newFactor.label.endsWith("...")).toBe(false);
+});
+
+it("treats a whitespace-only instruction the same as a blank one", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const proposal = generateDemoProposal(project.document, "   ");
+  const newFactor =
+    proposal.model.factors[proposal.model.factors.length - 1];
+  expect(newFactor.label).toBe("Participant engagement");
+});
+
+it("encodes special characters in the project id when building an invite url", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const withSpecialId = { ...project, id: "project #1 & co" };
+  const invite = createDemoInvite(withSpecialId, "viewer");
+  expect(invite.url).toContain(encodeURIComponent("project #1 & co"));
+  expect(invite.url).not.toContain("project #1 & co");
 });

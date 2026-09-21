@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- デモモードにロール切替(owner/editor/viewer)、招待リンク発行UI(演出のみ、実送信・実DBなし)、2エディタ同時編集デモ、Euria AI提案のルールベースなモック(人間の承認待ちUIを含む)を追加した。
+- いずれも `src/demo-cloud/` 内で完結し、本番のクラウド実装(`src/cloud/`、`supabase/`、`server/`)には変更を加えていない。
+
 ## 0.1.4
 
 - ステークホルダー向けデモ用の完全モック「デモモード」(`VITE_DEMO_MODE=true`)を追加。実Supabase/Google OAuth/Infomaniak連携なしに、疑似ログイン・ダミープロジェクト一覧・実際のマップ/行列/シミュレーション編集・役割別の読み取り専用表示を体験できる。

@@ -1,4 +1,4 @@
-import type { Project } from "../model";
+import type { Factor, Model, Project } from "../model";
 
 export interface DemoUser {
   id: string;
@@ -169,6 +169,12 @@ export class DemoCloudStore {
       runs: [...document.runs, run],
     }));
   }
+
+  setRole(id: string, role: DemoRole): void {
+    const project = this.find(id);
+    if (!project) return;
+    project.role = role;
+  }
 }
 
 export interface DemoSharedControls {
@@ -202,13 +208,87 @@ export function createDemoControls(
     onSaveBaseline: async (model) => store.saveBaseline(id, model),
     onSaveScenario: async (scenario) => store.saveScenario(id, scenario),
     onSaveRun: async (run) => store.saveRun(id, run),
-    requestAiProposal: async () =>
-      new Response(
+    requestAiProposal: async (projectId, instruction) => {
+      const current = store.getProject(projectId);
+      if (!current)
+        return new Response(
+          JSON.stringify({ error: "Demo project not found." }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        );
+      const proposal = generateDemoProposal(current.document, instruction);
+      return new Response(
         JSON.stringify({
-          error:
-            "AI proposals are part of the next demo update and are not available yet.",
+          revision: current.document.revision,
+          model: proposal.model,
+          summary: proposal.summary,
         }),
-        { status: 503, headers: { "Content-Type": "application/json" } },
-      ),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    },
   };
+}
+
+export interface DemoInvite {
+  role: DemoRole;
+  token: string;
+  url: string;
+}
+
+export function createDemoInvite(
+  project: DemoProjectSummary,
+  role: DemoRole,
+  base: string = typeof window !== "undefined"
+    ? window.location.origin + window.location.pathname
+    : "",
+): DemoInvite {
+  const token = crypto.randomUUID();
+  const url = `${base}#demo-invite=${token}&project=${encodeURIComponent(project.id)}&role=${role}`;
+  return { role, token, url };
+}
+
+export interface DemoProposal {
+  model: Model;
+  summary: string;
+}
+
+function truncateLabel(text: string, max = 60): string {
+  return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+}
+
+export function generateDemoProposal(
+  document: Project,
+  instruction: string,
+): DemoProposal {
+  const trimmed = instruction.trim();
+  const label = trimmed ? truncateLabel(trimmed) : "Participant engagement";
+  const newFactor: Factor = {
+    id: crypto.randomUUID(),
+    label,
+    color: "#f8dfbe",
+    x: (document.model.factors.length % 4) * 230,
+    y: Math.floor(document.model.factors.length / 4) * 130,
+    provenance: "ai",
+  };
+  const anchor = document.model.factors[0];
+  const model: Model = {
+    factors: [...document.model.factors, newFactor],
+    relationships: anchor
+      ? [
+          ...document.model.relationships,
+          {
+            source: anchor.id,
+            target: newFactor.id,
+            weight: 0.5,
+            provenance: "ai",
+            rationale: trimmed
+              ? `Suggested from your instruction: "${trimmed}".`
+              : "Suggested as a plausible related factor for this agenda.",
+          },
+        ]
+      : document.model.relationships,
+  };
+  const summary = trimmed
+    ? `Demo AI proposal: added "${label}" based on "${trimmed}" and linked it to an existing factor. Review and accept or reject before it changes the shared model.`
+    : `Demo AI proposal: added a plausible new factor ("${label}") to illustrate how a reviewed AI suggestion looks. Review and accept or reject before it changes the shared model.`;
+  return { model, summary };
 }
