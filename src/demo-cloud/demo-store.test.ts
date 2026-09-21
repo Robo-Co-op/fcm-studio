@@ -1,9 +1,10 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   DemoCloudStore,
   createDemoControls,
   createDemoInvite,
   generateDemoProposal,
+  requestDemoAiProposal,
 } from "./demo-store";
 
 it("starts signed out and signs in a demo user on demand", () => {
@@ -328,6 +329,42 @@ it("falls back to a generic proposal summary when the instruction is blank", () 
     project.document.model.factors.length + 1,
   );
   expect(proposal.summary.length).toBeGreaterThan(0);
+});
+
+it("uses the real /api/demo-draft response when it succeeds", async () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const fetchImpl = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({ revision: 9, model: project.document.model, summary: "From OpenRouter" }),
+      { status: 200 },
+    ),
+  );
+  const result = await requestDemoAiProposal(project.document, "test", fetchImpl);
+  expect(result.summary).toBe("From OpenRouter");
+  expect(result.revision).toBe(9);
+  expect(String(fetchImpl.mock.calls[0]?.[0])).toBe("/api/demo-draft");
+});
+
+it("falls back to the local mock when /api/demo-draft is unreachable", async () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
+  const result = await requestDemoAiProposal(project.document, "grow volunteer turnout", fetchImpl);
+  expect(result.summary).toMatch(/volunteer turnout/i);
+});
+
+it("falls back to the local mock when /api/demo-draft responds with an error status", async () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const [project] = store.listProjects();
+  const fetchImpl = vi.fn().mockResolvedValue(
+    new Response(JSON.stringify({ error: "not configured" }), { status: 503 }),
+  );
+  const result = await requestDemoAiProposal(project.document, "grow volunteer turnout", fetchImpl);
+  expect(result.summary).toMatch(/volunteer turnout/i);
 });
 
 it("does nothing when setRole is called with an unknown project id", () => {

@@ -191,6 +191,43 @@ export interface DemoSharedControls {
   requestAiProposal: (projectId: string, instruction: string) => Promise<Response>;
 }
 
+export interface DemoAiResult {
+  revision: number;
+  model: Model;
+  summary: string;
+}
+
+// 実AIプロバイダ(/api/demo-draft、サーバー側でVITE_接頭辞なしのキーを使う)を先に試し、
+// 未設定・失敗・ネットワーク不通のいずれでも常にモックへ静かにフォールバックする。
+export async function requestDemoAiProposal(
+  document: Project,
+  instruction: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<DemoAiResult> {
+  try {
+    const response = await fetchImpl("/api/demo-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agenda: document.agenda,
+        instruction,
+        revision: document.revision,
+        model: document.model,
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (response.ok) return (await response.json()) as DemoAiResult;
+  } catch {
+    // ネットワーク不通・タイムアウト等は下のローカルモックへフォールバックする。
+  }
+  const proposal = generateDemoProposal(document, instruction);
+  return {
+    revision: document.revision,
+    model: proposal.model,
+    summary: proposal.summary,
+  };
+}
+
 export function createDemoControls(
   store: DemoCloudStore,
   project: DemoProjectSummary,
@@ -215,15 +252,11 @@ export function createDemoControls(
           JSON.stringify({ error: "Demo project not found." }),
           { status: 404, headers: { "Content-Type": "application/json" } },
         );
-      const proposal = generateDemoProposal(current.document, instruction);
-      return new Response(
-        JSON.stringify({
-          revision: current.document.revision,
-          model: proposal.model,
-          summary: proposal.summary,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      const data = await requestDemoAiProposal(current.document, instruction);
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     },
   };
 }
