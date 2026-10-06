@@ -2,6 +2,8 @@ import { useReducer, useState, type ReactNode } from "react";
 import type { Project } from "../model";
 import {
   DemoCloudStore,
+  MAX_AGENDA,
+  MAX_NAME,
   createDemoControls,
   createDemoInvite,
   type DemoInvite,
@@ -92,6 +94,9 @@ export function DemoCloudRoot({ renderLocal, renderProject }: Props) {
   const [local, setLocal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [twoEditor, setTwoEditor] = useState(false);
+  const [name, setName] = useState("");
+  const [agenda, setAgenda] = useState("");
+  const [error, setError] = useState("");
   const [, bump] = useReducer((value: number) => value + 1, 0);
 
   const withUpdate =
@@ -198,8 +203,8 @@ export function DemoCloudRoot({ renderLocal, renderProject }: Props) {
           <section className="cloud-card cloud-login">
             <h2>Welcome to your research workspace</h2>
             <p>
-              Sign in to see how private cloud projects, invitations, and
-              shared editing look in FCM Studio.
+              Sign in to see how private cloud projects, invitations, and shared
+              editing look in FCM Studio.
             </p>
             <button
               className="cloud-primary"
@@ -239,38 +244,89 @@ export function DemoCloudRoot({ renderLocal, renderProject }: Props) {
               Sign out
             </button>
           </div>
-          <section className="cloud-card">
-            <div className="cloud-list-heading">
-              <h2>Your projects</h2>
-              <span>{projects.length}</span>
-            </div>
-            <p className="demo-note">
-              Role shown per project is a demo-only switch — change it to see
-              how owner, editor, and viewer views differ.
+          {error && (
+            <p className="cloud-error" role="alert">
+              {error}
             </p>
-            <ul className="cloud-projects">
-              {projects.map((project) => (
-                <li key={project.id}>
-                  <button onClick={() => selectProject(project.id)}>
-                    <span>
-                      <strong>{project.document.name}</strong>
-                      <small>
-                        {project.document.model.factors.length} factors ·{" "}
-                        {project.document.model.relationships.length}{" "}
-                        connections
-                      </small>
-                    </span>
-                    <RoleSwitcher
-                      role={project.role}
-                      onChange={withUpdate((role: DemoRole) =>
-                        store.setRole(project.id, role),
-                      )}
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+          )}
+          <div className="cloud-columns">
+            <section className="cloud-card">
+              <h2>Start a project</h2>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  try {
+                    const created = store.createProject({ name, agenda });
+                    setName("");
+                    setAgenda("");
+                    setError("");
+                    selectProject(created.id);
+                  } catch (failure) {
+                    setError(
+                      failure instanceof Error
+                        ? failure.message
+                        : String(failure),
+                    );
+                  }
+                }}
+              >
+                <label>
+                  Project name
+                  <input
+                    required
+                    maxLength={MAX_NAME}
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="A question worth exploring"
+                  />
+                </label>
+                <label>
+                  Research agenda
+                  <textarea
+                    maxLength={MAX_AGENDA}
+                    value={agenda}
+                    onChange={(event) => setAgenda(event.target.value)}
+                    placeholder="What would your group like to understand?"
+                  />
+                </label>
+                <button className="cloud-primary" disabled={!name.trim()}>
+                  Create project
+                </button>
+              </form>
+            </section>
+            <section className="cloud-card">
+              <div className="cloud-list-heading">
+                <h2>Your projects</h2>
+                <span>{projects.length}</span>
+              </div>
+              <p className="demo-note">
+                Role shown per project is a demo-only switch — change it to see
+                how owner, editor, and viewer views differ.
+              </p>
+              <ul className="cloud-projects">
+                {projects.map((project) => (
+                  <li key={project.id}>
+                    <button onClick={() => selectProject(project.id)}>
+                      <span>
+                        <strong>{project.document.name}</strong>
+                        <small>
+                          {project.document.model.factors.length} factors ·{" "}
+                          {project.document.model.relationships.length}{" "}
+                          connections
+                        </small>
+                      </span>
+                      <RoleSwitcher
+                        role={project.role}
+                        onChange={withUpdate((role: DemoRole) =>
+                          store.setRole(project.id, role),
+                        )}
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
         </main>
       </div>
     );

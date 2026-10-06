@@ -1,6 +1,9 @@
 import { expect, it, vi } from "vitest";
+import type { Factor } from "../model";
 import {
   DemoCloudStore,
+  MAX_AGENDA,
+  MAX_NAME,
   createDemoControls,
   createDemoInvite,
   generateDemoProposal,
@@ -89,7 +92,10 @@ it("resolves requestAiProposal with a mock proposal built from the instruction",
     "grow volunteer turnout",
   );
   expect(response.ok).toBe(true);
-  const data = (await response.json()) as { model: { factors: unknown[] }; summary: string };
+  const data = (await response.json()) as {
+    model: { factors: unknown[] };
+    summary: string;
+  };
   expect(data.model.factors.length).toBe(
     project.document.model.factors.length + 1,
   );
@@ -111,9 +117,7 @@ it("saves a new baseline model for a project", () => {
   const [project] = store.listProjects();
   const newBaseline = { ...project.document.baseline, factors: [] };
   store.saveBaseline(project.id, newBaseline);
-  expect(store.getProject(project.id)!.document.baseline).toEqual(
-    newBaseline,
-  );
+  expect(store.getProject(project.id)!.document.baseline).toEqual(newBaseline);
 });
 
 it("appends a scenario and a run without disturbing existing entries", () => {
@@ -139,7 +143,12 @@ it("appends a scenario and a run without disturbing existing entries", () => {
       iterations: 1,
       converged: true,
       algorithm: "kosko",
-      settings: { slope: 1, tolerance: 0.001, stableSteps: 3, maxIterations: 50 },
+      settings: {
+        slope: 1,
+        tolerance: 0.001,
+        stableSteps: 3,
+        maxIterations: 50,
+      },
     },
   };
 
@@ -195,7 +204,12 @@ it("silently no-ops change, undo, saveBaseline, saveScenario and saveRun for an 
         iterations: 0,
         converged: false,
         algorithm: "kosko",
-        settings: { slope: 1, tolerance: 0.001, stableSteps: 3, maxIterations: 50 },
+        settings: {
+          slope: 1,
+          tolerance: 0.001,
+          stableSteps: 3,
+          maxIterations: 50,
+        },
       },
     }),
   ).not.toThrow();
@@ -230,9 +244,7 @@ it("routes onSaveBaseline, onSaveScenario, onSaveRun and onUndo through the stor
 
   const newBaseline = { ...project.document.baseline, factors: [] };
   await controls.onSaveBaseline(newBaseline);
-  expect(store.getProject(project.id)!.document.baseline).toEqual(
-    newBaseline,
-  );
+  expect(store.getProject(project.id)!.document.baseline).toEqual(newBaseline);
 
   const scenario = {
     id: "scenario-ctrl",
@@ -242,9 +254,7 @@ it("routes onSaveBaseline, onSaveScenario, onSaveRun and onUndo through the stor
     clamped: {},
   };
   await controls.onSaveScenario(scenario);
-  expect(store.getProject(project.id)!.document.scenarios).toEqual([
-    scenario,
-  ]);
+  expect(store.getProject(project.id)!.document.scenarios).toEqual([scenario]);
 
   const run = {
     id: "run-ctrl",
@@ -258,7 +268,12 @@ it("routes onSaveBaseline, onSaveScenario, onSaveRun and onUndo through the stor
       iterations: 1,
       converged: true,
       algorithm: "kosko",
-      settings: { slope: 1, tolerance: 0.001, stableSteps: 3, maxIterations: 50 },
+      settings: {
+        slope: 1,
+        tolerance: 0.001,
+        stableSteps: 3,
+        maxIterations: 50,
+      },
     },
   };
   await controls.onSaveRun(run);
@@ -268,9 +283,7 @@ it("routes onSaveBaseline, onSaveScenario, onSaveRun and onUndo through the stor
   const controlsAfterChange = createDemoControls(store, project, () => {});
   expect(controlsAfterChange.canUndo).toBe(true);
   controlsAfterChange.onUndo();
-  expect(store.getProject(project.id)!.document.name).not.toBe(
-    "Before undo",
-  );
+  expect(store.getProject(project.id)!.document.name).not.toBe("Before undo");
 });
 
 it("returns undefined for getProject with an unknown id, and mutating a listed project does not affect the store", () => {
@@ -337,11 +350,19 @@ it("uses the real /api/demo-draft response when it succeeds", async () => {
   const [project] = store.listProjects();
   const fetchImpl = vi.fn().mockResolvedValue(
     new Response(
-      JSON.stringify({ revision: 9, model: project.document.model, summary: "From OpenRouter" }),
+      JSON.stringify({
+        revision: 9,
+        model: project.document.model,
+        summary: "From OpenRouter",
+      }),
       { status: 200 },
     ),
   );
-  const result = await requestDemoAiProposal(project.document, "test", fetchImpl);
+  const result = await requestDemoAiProposal(
+    project.document,
+    "test",
+    fetchImpl,
+  );
   expect(result.summary).toBe("From OpenRouter");
   expect(result.revision).toBe(9);
   expect(String(fetchImpl.mock.calls[0]?.[0])).toBe("/api/demo-draft");
@@ -352,7 +373,11 @@ it("falls back to the local mock when /api/demo-draft is unreachable", async () 
   store.signIn();
   const [project] = store.listProjects();
   const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
-  const result = await requestDemoAiProposal(project.document, "grow volunteer turnout", fetchImpl);
+  const result = await requestDemoAiProposal(
+    project.document,
+    "grow volunteer turnout",
+    fetchImpl,
+  );
   expect(result.summary).toMatch(/volunteer turnout/i);
 });
 
@@ -361,9 +386,15 @@ it("falls back to the local mock when /api/demo-draft responds with an error sta
   store.signIn();
   const [project] = store.listProjects();
   const fetchImpl = vi.fn().mockResolvedValue(
-    new Response(JSON.stringify({ error: "not configured" }), { status: 503 }),
+    new Response(JSON.stringify({ error: "not configured" }), {
+      status: 503,
+    }),
   );
-  const result = await requestDemoAiProposal(project.document, "grow volunteer turnout", fetchImpl);
+  const result = await requestDemoAiProposal(
+    project.document,
+    "grow volunteer turnout",
+    fetchImpl,
+  );
   expect(result.summary).toMatch(/volunteer turnout/i);
 });
 
@@ -395,8 +426,7 @@ it("truncates the generated factor label to 60 characters for a long instruction
   const longInstruction =
     "This is a very long free-text instruction that goes well past the sixty character label limit for a generated demo factor";
   const proposal = generateDemoProposal(project.document, longInstruction);
-  const newFactor =
-    proposal.model.factors[proposal.model.factors.length - 1];
+  const newFactor = proposal.model.factors[proposal.model.factors.length - 1];
   expect(newFactor.label.length).toBe(60);
   expect(newFactor.label.endsWith("...")).toBe(true);
 });
@@ -407,8 +437,7 @@ it("does not truncate a factor label that is exactly 60 characters", () => {
   const [project] = store.listProjects();
   const exactInstruction = "a".repeat(60);
   const proposal = generateDemoProposal(project.document, exactInstruction);
-  const newFactor =
-    proposal.model.factors[proposal.model.factors.length - 1];
+  const newFactor = proposal.model.factors[proposal.model.factors.length - 1];
   expect(newFactor.label).toBe(exactInstruction);
   expect(newFactor.label.endsWith("...")).toBe(false);
 });
@@ -418,8 +447,7 @@ it("treats a whitespace-only instruction the same as a blank one", () => {
   store.signIn();
   const [project] = store.listProjects();
   const proposal = generateDemoProposal(project.document, "   ");
-  const newFactor =
-    proposal.model.factors[proposal.model.factors.length - 1];
+  const newFactor = proposal.model.factors[proposal.model.factors.length - 1];
   expect(newFactor.label).toBe("Participant engagement");
 });
 
@@ -431,4 +459,85 @@ it("encodes special characters in the project id when building an invite url", (
   const invite = createDemoInvite(withSpecialId, "viewer");
   expect(invite.url).toContain(encodeURIComponent("project #1 & co"));
   expect(invite.url).not.toContain("project #1 & co");
+});
+
+it("creates an empty owner project at the top of the list", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const created = store.createProject({
+    name: "  River basin map ",
+    agenda: "What drives flooding?",
+  });
+  const projects = store.listProjects();
+  expect(projects).toHaveLength(4);
+  expect(projects[0]).toEqual(created);
+  expect(created.role).toBe("owner");
+  expect(created.document.name).toBe("River basin map");
+  expect(created.document.agenda).toBe("What drives flooding?");
+  expect(created.document.model).toEqual({ factors: [], relationships: [] });
+  expect(store.getProject(created.id)?.document.id).toBe(created.id);
+});
+
+it("rejects a blank or overlong project name without adding a project", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  expect(() => store.createProject({ name: "   ", agenda: "" })).toThrow(
+    /name/i,
+  );
+  expect(() =>
+    store.createProject({ name: "x".repeat(MAX_NAME + 1), agenda: "" }),
+  ).toThrow(String(MAX_NAME));
+  expect(() =>
+    store.createProject({ name: "ok", agenda: "x".repeat(MAX_AGENDA + 1) }),
+  ).toThrow(/agenda/i);
+  expect(store.listProjects()).toHaveLength(3);
+});
+
+it("accepts a name and agenda exactly at their limits, trimming the name first", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const created = store.createProject({
+    name: ` ${"x".repeat(MAX_NAME)} `,
+    agenda: "y".repeat(MAX_AGENDA),
+  });
+  expect(created.document.name).toHaveLength(MAX_NAME);
+  expect(created.document.agenda).toHaveLength(MAX_AGENDA);
+});
+
+it("returns a copy, so mutating it does not change the stored project", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const created = store.createProject({ name: "Isolated", agenda: "" });
+  created.document.name = "changed";
+  created.document.model.factors.push({ ...factor("x"), id: "x" });
+  const stored = store.getProject(created.id)!.document;
+  expect(stored.name).toBe("Isolated");
+  expect(stored.model.factors).toEqual([]);
+});
+
+it("edits and undoes a new project without touching its baseline", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const created = store.createProject({ name: "Editable", agenda: "" });
+  expect(store.canUndo(created.id)).toBe(false);
+  store.change(created.id, {
+    ...created.document,
+    model: { factors: [factor("a")], relationships: [] },
+  });
+  const edited = store.getProject(created.id)!.document;
+  expect(edited.model.factors).toHaveLength(1);
+  expect(edited.baseline.factors).toEqual([]);
+  store.undo(created.id);
+  expect(store.getProject(created.id)!.document.model.factors).toEqual([]);
+});
+
+function factor(id: string): Factor {
+  return { id, label: id, color: "#dbe7f4", x: 0, y: 0, provenance: "human" };
+}
+
+it("refuses to create a project while signed out", () => {
+  const store = new DemoCloudStore();
+  expect(() => store.createProject({ name: "Map", agenda: "" })).toThrow(
+    /sign in/i,
+  );
 });

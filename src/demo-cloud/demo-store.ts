@@ -95,6 +95,9 @@ function createSeedProjects(): DemoProjectSummary[] {
   ];
 }
 
+export const MAX_NAME = 200;
+export const MAX_AGENDA = 16000;
+
 export class DemoCloudStore {
   private signedInUser: DemoUser | null = null;
   private projects: DemoProjectSummary[] = createSeedProjects();
@@ -116,6 +119,38 @@ export class DemoCloudStore {
   listProjects(): DemoProjectSummary[] {
     if (!this.signedInUser) return [];
     return this.projects.map((project) => structuredClone(project));
+  }
+
+  createProject(input: { name: string; agenda: string }): DemoProjectSummary {
+    if (!this.signedInUser)
+      throw new Error("Please sign in to create a project.");
+    const name = input.name.trim();
+    if (!name) throw new Error("Project name is required.");
+    if (name.length > MAX_NAME)
+      throw new Error(`Project name must be ${MAX_NAME} characters or fewer.`);
+    if (input.agenda.length > MAX_AGENDA)
+      throw new Error(
+        `Research agenda must be ${MAX_AGENDA} characters or fewer.`,
+      );
+    const id = crypto.randomUUID();
+    const empty: Model = { factors: [], relationships: [] };
+    const project: DemoProjectSummary = {
+      id,
+      role: "owner",
+      document: {
+        version: 1,
+        id,
+        name,
+        agenda: input.agenda,
+        revision: 0,
+        model: empty,
+        baseline: structuredClone(empty),
+        scenarios: [],
+        runs: [],
+      },
+    };
+    this.projects.unshift(project);
+    return structuredClone(project);
   }
 
   getProject(id: string): DemoProjectSummary | undefined {
@@ -188,7 +223,10 @@ export interface DemoSharedControls {
   onSaveBaseline: (model: Project["baseline"]) => Promise<void>;
   onSaveScenario: (scenario: Project["scenarios"][number]) => Promise<void>;
   onSaveRun: (run: Project["runs"][number]) => Promise<void>;
-  requestAiProposal: (projectId: string, instruction: string) => Promise<Response>;
+  requestAiProposal: (
+    projectId: string,
+    instruction: string,
+  ) => Promise<Response>;
 }
 
 export interface DemoAiResult {
