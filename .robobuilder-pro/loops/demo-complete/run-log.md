@@ -11,3 +11,4 @@
 | 2026-10-06 | #16 状態の保持 | PASS 235 | レビューで「後続の保存が前の変更も書き込むため、save()欠落を検出できないテスト」が判明→変更ごとの再読込テストに書き直し、各save()除去で赤を確認。security OK（ID重複チェック追加）。SHIP |
 | 2026-10-06 | loop-retro | - | 繰り返し出たパターン: 初回 green で何も検証していないテストが3件。LOOP.md に「初回で通ったテストは欠陥注入で赤を見てから採用」を明文化。e2e-tester はこの作業ディレクトリでは起動不可と注記。omi 未接続はブロッカーとして STATE に記録 |
 | 2026-10-06 | ship: CI | FAIL→修正 | 実クラウドE2Eが「Explore with AI は無効」を期待して失敗。AI実装前（b26691d）のアサーションで、DEPLOYMENT.md 手順5と矛盾 → 期待値を「有効」に更新。ローカルで cloud E2E 17/17。PR に Jin の確認事項として明記 |
+| 2026-10-06 | ship: deploy+email | PASS | Vercel preview で新規作成・実AI（OpenRouter、13.7秒、モックではない）・保持・JSON取り込みを確認 → 本番デプロイ dpl_8hoiT39Hb4wy8sgNw9YnVjBSMwY7、本番エイリアスで200と新機能を確認。Lander宛てメール送信（xlsx は添付手段がなく本文に表で記載）。CI再実行中に本番化（ローカルで同じスイートが green） |

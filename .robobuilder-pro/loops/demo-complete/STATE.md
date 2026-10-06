@@ -1,7 +1,7 @@
 # STATE: demo-complete
 
 ## Current status
-running — 2026-10-06
+idle（AFK バックログ完了、#18 と会議フィードバック待ち）— 2026-10-06
 
 ## Facts (durable, cross-iteration)
 - ブランチ `feat/demo-complete` は `feat/demo-mode`@`290ae32`（PR #12、未マージ）から派生。PR は #12 を base にするか、#12 マージ後に main に向け直す
