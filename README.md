@@ -68,7 +68,7 @@ Project owners create manual invitation links for a confirmed email address. The
 
 ## Roadmap and stewardship
 
-FCM Studio is developed by Robo Co-op together with Lander Jiménez (Mondragon University). The plan is to hand it over to a community-governed home rather than keep it as a Robo Co-op service.
+FCM Studio is developed by Robo Co-op together with research partners at Mondragon University. The plan is to hand it over to a community-governed home rather than keep it as a Robo Co-op service.
 
 | Stage                   | Hosting                                                                 | Data                                                         | AI provider                                    | Status  |
 | ----------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------- | ------- |
