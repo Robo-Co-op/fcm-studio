@@ -48,8 +48,21 @@ test("a relationship can be switched to 'decreases' and keeps its strength (issu
   await expect(negativeEdges).toHaveCount(before + 1);
 
   await page
-    .getByLabel("Relationship strength")
+    .getByRole("group", { name: "Relationship strength" })
     .getByRole("button", { name: "0.3", exact: true })
     .click();
   await expect(weightInput).toHaveValue("-0.3");
+
+  await page.getByRole("button", { name: "Remove relationship" }).click();
+  await expect(weightInput).toHaveValue("0");
+  await expect(
+    page.getByText(
+      "No relationship from Communication to Community trust yet.",
+    ),
+  ).toBeVisible();
+  for (const name of [/Increases/, /Decreases/])
+    await expect(direction.getByRole("button", { name })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
 });
