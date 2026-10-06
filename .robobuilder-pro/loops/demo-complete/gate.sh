@@ -16,7 +16,7 @@ if [ -n "$violations" ]; then
 fi
 echo "Gate: restricted paths untouched"
 
-MIN_TESTS="${GATE_MIN_TESTS:-181}"
+MIN_TESTS="${GATE_MIN_TESTS:-220}"
 out=$(npm run gate 2>&1); status=$?
 printf '%s\n' "$out" | tail -20
 [ $status -eq 0 ] || { echo "Gate BLOCK: npm run gate failed"; exit 1; }
