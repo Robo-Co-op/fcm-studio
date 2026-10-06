@@ -66,6 +66,27 @@ For the complete Vercel, Supabase, and Euria setup procedure, see [the deploymen
 
 Project owners create manual invitation links for a confirmed email address. The app places the token after `#invite=` and removes it from the address bar immediately; it does not send email. Recipients must authenticate with that confirmed address before accepting. Baselines, saved scenarios, and simulation runs are append-only shared history. Loading a baseline or scenario still performs a revision-checked model update, so a stale selection cannot silently overwrite a collaborator's work.
 
+## Roadmap and stewardship
+
+FCM Studio is developed by Robo Co-op together with Lander Jiménez (Mondragon University). The plan is to hand it over to a community-governed home rather than keep it as a Robo Co-op service.
+
+| Stage                   | Hosting                                                                 | Data                                                         | AI provider                                    | Status  |
+| ----------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------- | ------- |
+| 1. Stakeholder demo     | Robo Co-op Vercel (`fcm-studio-demo.vercel.app`, `VITE_DEMO_MODE=true`) | In-browser only, no shared database                          | OpenRouter, with a deterministic mock fallback | Live    |
+| 2. Partner-hosted pilot | Mondragon-side Vercel                                                   | Mondragon-side Supabase (Google sign-in, per-project access) | Euria (Infomaniak), OpenAI-compatible          | Planned |
+| 3. Open commons         | Any operator, self-hostable                                             | Data held under a data cooperative agreement                 | Operator's choice                              | Planned |
+
+The AI provider is configuration, not code: `AI_BASE_URL` and `AI_MODEL` point the same OpenAI-compatible client at OpenRouter today and Euria later. Moving between stages changes environment variables and hosting accounts only. Any change that would tie the app to one operator's account belongs in an issue first.
+
+The long-term intent is to run FCM Studio as a **platform cooperative**, where the people who use and maintain the tool govern it, and to hold participant research data in a **data cooperative**, where communities that contribute data decide how it is used. The code is already Apache-2.0.
+
+Open questions, tracked as issues before stage 2:
+
+- Governance: who holds the hosting accounts, domain, and Supabase organization at stage 2, and how decisions transfer at stage 3.
+- Data: consent, retention, and export rules for participant material, and what a data cooperative agreement must cover.
+- Funding: how hosting and AI usage are paid for (for example Open Collective for transparent spending, GitHub Sponsors, grants, or member fees).
+- AI: whether Euria fully replaces OpenRouter, and the per-project usage limits described in issue #4.
+
 ## Development
 
 ```sh
@@ -74,6 +95,7 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npm run test:e2e:demo   # demo mode (VITE_DEMO_MODE=true) on port 5190
 ```
 
 Playwright starts the development server automatically. `PLAYWRIGHT_CHANNEL` optionally selects an installed browser channel; leave it unset to use Playwright's Chromium. On Linux CI, install browsers with `npx playwright install --with-deps chromium`.
