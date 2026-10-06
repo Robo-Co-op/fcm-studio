@@ -219,6 +219,8 @@ test("multi-cell matrix paste commits atomically as one revision", async ({
 }) => {
   const db = authority();
   const editor = await db.open(browser);
+  // 見出しの表示直後は同期前の再描画で入力欄が差し替わり、貼り付けが失われることがある
+  await expect(editor.getByText(/revision 0/)).toBeVisible();
   await editor.evaluate(() => {
     const input = document.querySelector<HTMLInputElement>(
       'input[aria-label="Trust → Trust"]',
