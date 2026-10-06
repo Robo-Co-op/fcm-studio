@@ -921,6 +921,33 @@ textarea {
   color: #3f6431;
   border-color: #a5bb94;
 }
+.relationship-sentence {
+  font-weight: 600;
+}
+.direction-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 10px 0 14px;
+}
+.direction-toggle button {
+  border: 1px solid #e0e7d7;
+  border-radius: 6px;
+  padding: 8px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fbfcf9;
+}
+.direction-toggle .increase.chosen {
+  background: #e3f0ea;
+  border-color: #4c927c;
+  color: #2f6a57;
+}
+.direction-toggle .decrease.chosen {
+  background: #f8e6e3;
+  border-color: #cf766c;
+  color: #9a4238;
+}
 .provenance {
   display: block;
   font-size: 9px;

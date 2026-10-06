@@ -49,6 +49,12 @@ import { demoProject } from "./demo";
 import { describeChanges } from "./proposals";
 import { browserStorage } from "./browser-storage";
 import {
+  STRENGTHS,
+  describeRelationship,
+  withDirection,
+  withStrength,
+} from "./relationship";
+import {
   LINE_THICKNESSES,
   LINE_THICKNESS_LABELS,
   edgeAppearance,
@@ -79,7 +85,6 @@ function FactorNode({ data, selected }: NodeProps) {
   );
 }
 const nodeTypes = { factor: FactorNode };
-const presets = [-0.9, -0.7, -0.3, -0.1, 0, 0.1, 0.3, 0.7, 0.9];
 const pairKey = (s: string, t: string) => JSON.stringify([s, t]);
 function download(data: BlobPart, name: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([data], { type }));
@@ -1299,11 +1304,42 @@ export default function App({
                         <span className="muted">→</span>{" "}
                         {label(selected.target)}
                       </h2>
-                      <p className="muted">
-                        More of the source leads to{" "}
-                        {edge && edge.weight < 0 ? "less" : "more"} of the
-                        target.
+                      <p className="muted relationship-sentence">
+                        {describeRelationship(
+                          label(selected.source),
+                          label(selected.target),
+                          edge?.weight ?? 0,
+                        )}
                       </p>
+                      <div
+                        className="direction-toggle"
+                        role="group"
+                        aria-label="Relationship direction"
+                      >
+                        {(["increase", "decrease"] as const).map((dir) => {
+                          const current = edge?.weight ?? 0;
+                          const on =
+                            dir === "increase" ? current > 0 : current < 0;
+                          return (
+                            <button
+                              key={dir}
+                              className={`${dir} ${on ? "chosen" : ""}`}
+                              aria-pressed={on}
+                              onClick={() =>
+                                weight(
+                                  selected.source,
+                                  selected.target,
+                                  withDirection(current, dir),
+                                )
+                              }
+                            >
+                              {dir === "increase"
+                                ? "↑ Increases (+)"
+                                : "↓ Decreases (−)"}
+                            </button>
+                          );
+                        })}
+                      </div>
                       <label className="field-label">Influence weight</label>
                       <input
                         aria-label="Relationship weight"
@@ -1321,18 +1357,25 @@ export default function App({
                           )
                         }
                       />
-                      <div className="presets">
-                        {presets.map((n) => (
+                      <label className="field-label">Strength</label>
+                      <div
+                        className="presets"
+                        aria-label="Relationship strength"
+                      >
+                        {STRENGTHS.map((n) => (
                           <button
                             key={n}
                             className={
-                              (edge?.weight ?? 0) === n ? "chosen" : ""
+                              Math.abs(edge?.weight ?? 0) === n ? "chosen" : ""
                             }
                             onClick={() =>
-                              weight(selected.source, selected.target, n)
+                              weight(
+                                selected.source,
+                                selected.target,
+                                withStrength(edge?.weight ?? 0, n),
+                              )
                             }
                           >
-                            {n > 0 ? "+" : ""}
                             {n}
                           </button>
                         ))}
