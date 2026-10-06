@@ -1,5 +1,6 @@
 import { useReducer, useRef, useState, type ReactNode } from "react";
 import type { Project } from "../model";
+import { browserStorage } from "../browser-storage";
 import type { DemoImport, DemoProjectInput } from "./demo-import";
 import {
   DemoCloudStore,
@@ -11,7 +12,6 @@ import {
   type DemoProjectSummary,
   type DemoRole,
   type DemoSharedControls,
-  type DemoStorage,
 } from "./demo-store";
 import "../cloud/cloud.css";
 import "./demo.css";
@@ -93,15 +93,6 @@ function DemoInvitePanel({ project }: { project: DemoProjectSummary }) {
 }
 
 type WorkbookPreview = Extract<DemoImport, { kind: "workbook" }>;
-
-// 一部のブラウザ設定では localStorage へのアクセス自体が例外になる
-function browserStorage(): DemoStorage | undefined {
-  try {
-    return window.localStorage;
-  } catch {
-    return undefined;
-  }
-}
 
 const MAX_SHOWN_ISSUES = 50;
 

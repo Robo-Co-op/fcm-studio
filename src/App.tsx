@@ -47,6 +47,16 @@ import {
 import type { Model, Project, Run, Scenario, SimulationResult } from "./model";
 import { demoProject } from "./demo";
 import { describeChanges } from "./proposals";
+import { browserStorage } from "./browser-storage";
+import {
+  LINE_THICKNESSES,
+  LINE_THICKNESS_LABELS,
+  edgeAppearance,
+  formatWeight,
+  loadLineThickness,
+  saveLineThickness,
+  type LineThickness,
+} from "./edge-style";
 import type { ImportPreview } from "./excel";
 
 function FactorNode({ data, selected }: NodeProps) {
@@ -223,6 +233,9 @@ export default function App({
     target: string;
   } | null>(null);
   const [factorId, setFactorId] = useState<string | null>(null);
+  const [lineThickness, setLineThickness] = useState<LineThickness>(() =>
+    loadLineThickness(browserStorage()),
+  );
   const [dragPositions, setDragPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
@@ -447,24 +460,28 @@ export default function App({
         selected?.source === e.source && selected?.target === e.target;
       const connected =
         !factorId || e.source === factorId || e.target === factorId;
+      const look = edgeAppearance(e.weight, lineThickness, active);
       return {
         id: pairKey(e.source, e.target),
         source: e.source,
         target: e.target,
-        label: `${e.weight > 0 ? "+" : ""}${e.weight}`,
+        label: formatWeight(e.weight),
         type: "default",
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: e.weight > 0 ? "#4c927c" : "#cf766c",
+          color: look.stroke,
+          // 既定の strokeWidth 単位だと太い線で矢印が巨大になるため px で指定する
+          markerUnits: "userSpaceOnUse",
+          width: 10 + look.strokeWidth * 2,
+          height: 10 + look.strokeWidth * 2,
         },
         style: {
-          stroke: e.weight > 0 ? "#4c927c" : "#cf766c",
-          strokeWidth: active ? 4 : 1 + Math.abs(e.weight) * 2,
+          ...look,
           opacity: connected ? (active ? 1 : 0.65) : 0.12,
         },
         labelStyle: {
           fill: active ? "#153b30" : "#5b6b66",
-          fontSize: 10,
+          fontSize: lineThickness === "thin" ? 10 : 12,
           fontWeight: 600,
         },
         labelBgStyle: { fill: "#fbfcf9", fillOpacity: 0.9 },
@@ -1125,6 +1142,21 @@ export default function App({
                     <i className="line-neg" />
                     Negative influence
                   </span>
+                  <select
+                    aria-label="Line thickness"
+                    value={lineThickness}
+                    onChange={(e) => {
+                      const next = e.target.value as LineThickness;
+                      setLineThickness(next);
+                      saveLineThickness(browserStorage(), next);
+                    }}
+                  >
+                    {LINE_THICKNESSES.map((value) => (
+                      <option key={value} value={value}>
+                        {LINE_THICKNESS_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     aria-label="Filter relationships"
                     value={filter}

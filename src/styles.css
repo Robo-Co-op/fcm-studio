@@ -507,13 +507,20 @@ hr {
 }
 .line-pos,
 .line-neg {
-  width: 16px;
-  height: 2px;
+  width: 22px;
+  height: 3px;
   display: inline-block;
-  background: #609f82;
+  background: #4c927c;
 }
 .line-neg {
-  background: #cc8375;
+  background: repeating-linear-gradient(
+    90deg,
+    #cf766c 0 7px,
+    transparent 7px 11px
+  );
+}
+.map-legend select + select {
+  margin-left: 8px;
 }
 .map-legend select {
   margin-left: auto;
