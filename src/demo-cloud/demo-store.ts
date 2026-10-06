@@ -1,4 +1,4 @@
-import type { Factor, Model, Project } from "../model";
+import { validateModel, type Factor, type Model, type Project } from "../model";
 
 export interface DemoUser {
   id: string;
@@ -121,7 +121,11 @@ export class DemoCloudStore {
     return this.projects.map((project) => structuredClone(project));
   }
 
-  createProject(input: { name: string; agenda: string }): DemoProjectSummary {
+  createProject(input: {
+    name: string;
+    agenda: string;
+    model?: Model;
+  }): DemoProjectSummary {
     if (!this.signedInUser)
       throw new Error("Please sign in to create a project.");
     const name = input.name.trim();
@@ -133,7 +137,11 @@ export class DemoCloudStore {
         `Research agenda must be ${MAX_AGENDA} characters or fewer.`,
       );
     const id = crypto.randomUUID();
-    const empty: Model = { factors: [], relationships: [] };
+    const model: Model = { factors: [], relationships: [] };
+    if (input.model) {
+      validateModel(input.model);
+      Object.assign(model, structuredClone(input.model));
+    }
     const project: DemoProjectSummary = {
       id,
       role: "owner",
@@ -143,8 +151,8 @@ export class DemoCloudStore {
         name,
         agenda: input.agenda,
         revision: 0,
-        model: empty,
-        baseline: structuredClone(empty),
+        model,
+        baseline: structuredClone(model),
         scenarios: [],
         runs: [],
       },

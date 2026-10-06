@@ -541,3 +541,44 @@ it("refuses to create a project while signed out", () => {
     /sign in/i,
   );
 });
+
+it("creates a project from an imported model with an independent baseline", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const model = {
+    factors: [factor("a"), factor("b")],
+    relationships: [
+      {
+        source: "a",
+        target: "b",
+        weight: 0.7,
+        provenance: "imported" as const,
+      },
+    ],
+  };
+  const created = store.createProject({ name: "Imported", agenda: "Q", model });
+  expect(created.document.model).toEqual(model);
+  expect(created.document.baseline).toEqual(model);
+  model.factors.push(factor("c"));
+  expect(store.getProject(created.id)!.document.model.factors).toHaveLength(2);
+});
+
+it("rejects an invalid imported model without adding a project", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const broken = {
+    factors: [factor("a")],
+    relationships: [
+      {
+        source: "a",
+        target: "missing",
+        weight: 2,
+        provenance: "imported" as const,
+      },
+    ],
+  };
+  expect(() =>
+    store.createProject({ name: "Broken", agenda: "", model: broken }),
+  ).toThrow();
+  expect(store.listProjects()).toHaveLength(3);
+});

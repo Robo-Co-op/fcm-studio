@@ -57,3 +57,36 @@
   min-width: 0;
   border: 1px solid #e3dccb;
 }
+
+.demo-import-preview {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.demo-import-preview label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.demo-import-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
+.demo-import-labels span {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #eef2e8;
+  font-size: 0.75rem;
+}
+
+.demo-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

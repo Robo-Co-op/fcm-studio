@@ -1,5 +1,6 @@
-import { useReducer, useState, type ReactNode } from "react";
+import { useReducer, useRef, useState, type ReactNode } from "react";
 import type { Project } from "../model";
+import type { DemoImport, DemoProjectInput } from "./demo-import";
 import {
   DemoCloudStore,
   MAX_AGENDA,
@@ -84,6 +85,132 @@ function DemoInvitePanel({ project }: { project: DemoProjectSummary }) {
             Copy
           </button>
         </span>
+      )}
+    </div>
+  );
+}
+
+type WorkbookPreview = Extract<DemoImport, { kind: "workbook" }>;
+
+const MAX_SHOWN_ISSUES = 50;
+
+function DemoImportPanel({
+  onCreate,
+  onError,
+}: {
+  onCreate: (input: DemoProjectInput) => void;
+  onError: (message: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<WorkbookPreview | null>(null);
+  const [transpose, setTranspose] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const read = async (file: File) => {
+    setBusy(true);
+    try {
+      const { readDemoImport } = await import("./demo-import");
+      const result = await readDemoImport(file);
+      if (result.kind === "project") {
+        setPending(null);
+        onCreate(result.input);
+      } else {
+        setTranspose(false);
+        setPending(result);
+      }
+    } catch (failure) {
+      onError((failure as Error).message);
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const accept = async () => {
+    if (!pending) return;
+    try {
+      const { workbookToProjectInput } = await import("./demo-import");
+      onCreate(
+        workbookToProjectInput(pending.preview, transpose, pending.fileName),
+      );
+      setPending(null);
+    } catch (failure) {
+      onError((failure as Error).message);
+    }
+  };
+
+  const preview = pending?.preview;
+  return (
+    <div className="cloud-import">
+      <h3>Import a workbook</h3>
+      <p>
+        Start from an Excel weight matrix (.xlsx) or an FCM Studio backup
+        (.json). The file stays in this browser.
+      </p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".xlsx,.json"
+        hidden
+        aria-label="Workbook file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void read(file);
+        }}
+      />
+      <button disabled={busy} onClick={() => fileRef.current?.click()}>
+        {busy ? "Reading…" : "Choose .xlsx or .json"}
+      </button>
+      {preview && (
+        <div className="demo-import-preview" aria-label="Import preview">
+          <h4>
+            {preview.sheet} · {preview.labels.length} factors
+          </h4>
+          <p className="cloud-note">Detected range: {preview.range}</p>
+          {preview.agenda && <p>{preview.agenda}</p>}
+          <label>
+            Matrix direction
+            <select
+              value={String(transpose)}
+              onChange={(event) => setTranspose(event.target.value === "true")}
+            >
+              <option value="false">
+                Rows are sources → columns are targets
+              </option>
+              <option value="true">
+                Columns are sources → rows are targets
+              </option>
+            </select>
+          </label>
+          <div className="demo-import-labels">
+            {preview.labels.map((label, index) => (
+              <span key={index}>{label}</span>
+            ))}
+          </div>
+          {preview.issues.length > 0 && (
+            <div className="cloud-error" role="alert">
+              {preview.issues.slice(0, MAX_SHOWN_ISSUES).map((issue, index) => (
+                <p key={index}>{issue}</p>
+              ))}
+              {preview.issues.length > MAX_SHOWN_ISSUES && (
+                <p>
+                  …and {preview.issues.length - MAX_SHOWN_ISSUES} more issues.
+                </p>
+              )}
+              <p>Fix these cells in the workbook and choose it again.</p>
+            </div>
+          )}
+          <div className="demo-import-actions">
+            <button onClick={() => setPending(null)}>Cancel</button>
+            <button
+              className="cloud-primary"
+              disabled={preview.issues.length > 0}
+              onClick={() => void accept()}
+            >
+              Create project from workbook
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -293,6 +420,14 @@ export function DemoCloudRoot({ renderLocal, renderProject }: Props) {
                   Create project
                 </button>
               </form>
+              <DemoImportPanel
+                onCreate={(input) => {
+                  const created = store.createProject(input);
+                  setError("");
+                  selectProject(created.id);
+                }}
+                onError={setError}
+              />
             </section>
             <section className="cloud-card">
               <div className="cloud-list-heading">
