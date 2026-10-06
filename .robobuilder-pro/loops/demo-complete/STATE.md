@@ -10,6 +10,7 @@ running — 2026-10-06
 - Excel 取り込みは `src/excel.ts` の `inspectWorkbook` → `previewToModel`（正方行列、"FCM Values" シート優先、最大200因子）
 - デモストアはインメモリで、seed 3件。リロードで消える
 - 本番URL `https://fcm-studio-demo.vercel.app`（Vercel team robo-lab-fdf42eb4、project fcm-studio-demo）。env の AI_* は設定済み。Vercel MCP は壊れているので CLI を使う
+- `/api/demo-draft`（`server/demo-draft.mjs`、制限パスではない）は agenda が空だと400を返す。agenda なしで作った新規プロジェクトでは AI が常にモックにフォールバックする → #15 で直す
 - Lander のフィードバックフォーム: https://forms.cloud.microsoft/r/cZMHVzZSf7
 - omi の 2026-10-06 17:15 の会議記録は MCP 接続不可で未取得
 
