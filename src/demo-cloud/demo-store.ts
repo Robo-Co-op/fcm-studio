@@ -1,4 +1,10 @@
-import { validateModel, type Factor, type Model, type Project } from "../model";
+import {
+  validateModel,
+  validateProject,
+  type Factor,
+  type Model,
+  type Project,
+} from "../model";
 
 export interface DemoUser {
   id: string;
@@ -98,10 +104,64 @@ function createSeedProjects(): DemoProjectSummary[] {
 export const MAX_NAME = 200;
 export const MAX_AGENDA = 16000;
 
+const ROLES: unknown[] = ["owner", "editor", "viewer"];
+
+export const DEMO_STORAGE_KEY = "fcm-studio-demo-v1";
+
+export type DemoStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
 export class DemoCloudStore {
   private signedInUser: DemoUser | null = null;
-  private projects: DemoProjectSummary[] = createSeedProjects();
+  private projects: DemoProjectSummary[];
   private history = new Map<string, Project>();
+
+  constructor(private readonly storage?: DemoStorage) {
+    this.projects = this.load() ?? createSeedProjects();
+  }
+
+  // 保存データは利用者のブラウザ由来で信用しない。壊れていれば seed に戻す
+  private load(): DemoProjectSummary[] | undefined {
+    try {
+      const saved = this.storage?.getItem(DEMO_STORAGE_KEY);
+      if (!saved) return undefined;
+      const projects: unknown = JSON.parse(saved);
+      if (!Array.isArray(projects) || projects.length === 0) return undefined;
+      for (const project of projects) {
+        if (
+          typeof project !== "object" ||
+          project === null ||
+          !ROLES.includes(project.role)
+        )
+          return undefined;
+        validateProject(project.document);
+        if (project.id !== project.document.id) return undefined;
+      }
+      const ids = new Set(projects.map((project) => project.id));
+      if (ids.size !== projects.length) return undefined;
+      return projects as DemoProjectSummary[];
+    } catch {
+      return undefined;
+    }
+  }
+
+  reset(): void {
+    this.projects = createSeedProjects();
+    this.history.clear();
+    try {
+      this.storage?.removeItem(DEMO_STORAGE_KEY);
+    } catch {
+      // 削除できなくても、このセッションは初期状態で続く
+    }
+  }
+
+  // プライベートブラウズや容量超過で保存できなくても、デモはメモリ上で動き続ける
+  private save(): void {
+    try {
+      this.storage?.setItem(DEMO_STORAGE_KEY, JSON.stringify(this.projects));
+    } catch {
+      // 保存失敗は無視する
+    }
+  }
 
   get user(): DemoUser | null {
     return this.signedInUser;
@@ -158,6 +218,7 @@ export class DemoCloudStore {
       },
     };
     this.projects.unshift(project);
+    this.save();
     return structuredClone(project);
   }
 
@@ -175,6 +236,7 @@ export class DemoCloudStore {
     if (!project) return;
     this.history.set(id, structuredClone(project.document));
     project.document = { ...next, revision: project.document.revision + 1 };
+    this.save();
   }
 
   canUndo(id: string): boolean {
@@ -187,12 +249,14 @@ export class DemoCloudStore {
     if (!project || !previous) return;
     project.document = previous;
     this.history.delete(id);
+    this.save();
   }
 
   private update(id: string, updater: (document: Project) => Project): void {
     const project = this.find(id);
     if (!project) return;
     project.document = updater(project.document);
+    this.save();
   }
 
   saveBaseline(id: string, model: Project["baseline"]): void {
@@ -217,6 +281,7 @@ export class DemoCloudStore {
     const project = this.find(id);
     if (!project) return;
     project.role = role;
+    this.save();
   }
 }
 

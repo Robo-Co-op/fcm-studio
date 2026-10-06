@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import type { Factor } from "../model";
 import {
+  DEMO_STORAGE_KEY,
   DemoCloudStore,
   MAX_AGENDA,
   MAX_NAME,
@@ -595,4 +596,151 @@ it("allows importing for owners and editors but not viewers", () => {
       ]),
   );
   expect(byRole).toEqual({ owner: true, editor: true, viewer: false });
+});
+
+function memoryStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem"> {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => void values.set(key, value),
+    removeItem: (key) => void values.delete(key),
+  };
+}
+
+it("keeps created and edited projects across a reload", () => {
+  const storage = memoryStorage();
+  const first = new DemoCloudStore(storage);
+  first.signIn();
+  const created = first.createProject({ name: "Persisted", agenda: "" });
+  first.change(created.id, {
+    ...created.document,
+    model: { factors: [factor("a")], relationships: [] },
+  });
+
+  const reloaded = new DemoCloudStore(storage);
+  reloaded.signIn();
+  const projects = reloaded.listProjects();
+  expect(projects).toHaveLength(4);
+  expect(projects[0].document.name).toBe("Persisted");
+  expect(projects[0].document.model.factors).toHaveLength(1);
+});
+
+it.each([
+  ["broken JSON", "{not json"],
+  ["not a list", JSON.stringify({ projects: [] })],
+  [
+    "invalid project",
+    JSON.stringify([{ id: "x", role: "owner", document: { version: 1 } }]),
+  ],
+  ["unknown role", JSON.stringify([{ id: "x", role: "admin", document: {} }])],
+  ["an empty list", "[]"],
+  [
+    "duplicate ids",
+    JSON.stringify(
+      (() => {
+        const store = new DemoCloudStore();
+        store.signIn();
+        const [project] = store.listProjects();
+        return [project, project];
+      })(),
+    ),
+  ],
+  [
+    "id mismatch",
+    JSON.stringify([
+      (() => {
+        const store = new DemoCloudStore();
+        store.signIn();
+        const [project] = store.listProjects();
+        return { ...project, id: "other-id" };
+      })(),
+    ]),
+  ],
+])("falls back to the seed projects when saved data is %s", (_, saved) => {
+  const storage = memoryStorage();
+  storage.setItem(DEMO_STORAGE_KEY, saved);
+  const store = new DemoCloudStore(storage);
+  store.signIn();
+  expect(store.listProjects().map((p) => p.id)).toEqual([
+    "demo-owner-project",
+    "demo-editor-project",
+    "demo-viewer-project",
+  ]);
+});
+
+it("keeps working when browser storage throws", () => {
+  const failing: Pick<Storage, "getItem" | "setItem" | "removeItem"> = {
+    getItem: () => {
+      throw new Error("SecurityError");
+    },
+    setItem: () => {
+      throw new Error("QuotaExceededError");
+    },
+    removeItem: () => {
+      throw new Error("SecurityError");
+    },
+  };
+  const store = new DemoCloudStore(failing);
+  store.signIn();
+  expect(() =>
+    store.createProject({ name: "Still works", agenda: "" }),
+  ).not.toThrow();
+  expect(store.listProjects()).toHaveLength(4);
+});
+
+it("resets to the seed projects and forgets saved data and undo history", () => {
+  const storage = memoryStorage();
+  const store = new DemoCloudStore(storage);
+  store.signIn();
+  const created = store.createProject({ name: "Temporary", agenda: "" });
+  store.change(created.id, created.document);
+  store.reset();
+  expect(store.listProjects()).toHaveLength(3);
+  expect(store.canUndo(created.id)).toBe(false);
+  expect(storage.getItem(DEMO_STORAGE_KEY)).toBeNull();
+  const reloaded = new DemoCloudStore(storage);
+  reloaded.signIn();
+  expect(reloaded.listProjects()).toHaveLength(3);
+});
+
+// 各変更の直後に再読込して、その変更自身が保存しているかを個別に確かめる
+function reloadAfter(mutate: (store: DemoCloudStore, id: string) => void) {
+  const storage = memoryStorage();
+  const store = new DemoCloudStore(storage);
+  store.signIn();
+  const created = store.createProject({ name: "Paths", agenda: "" });
+  store.change(created.id, {
+    ...created.document,
+    model: { factors: [factor("a")], relationships: [] },
+  });
+  mutate(store, created.id);
+  const reloaded = new DemoCloudStore(storage);
+  reloaded.signIn();
+  return {
+    store: reloaded,
+    project: reloaded.listProjects().find((p) => p.id === created.id)!,
+  };
+}
+
+it("persists a role change on its own", () => {
+  const { project } = reloadAfter((store, id) => store.setRole(id, "viewer"));
+  expect(project.role).toBe("viewer");
+});
+
+it("persists a saved baseline on its own", () => {
+  const { project } = reloadAfter((store, id) =>
+    store.saveBaseline(id, { factors: [factor("b")], relationships: [] }),
+  );
+  expect(project.document.baseline.factors.map((f) => f.id)).toEqual(["b"]);
+});
+
+it("persists an undo on its own", () => {
+  const { project } = reloadAfter((store, id) => store.undo(id));
+  expect(project.document.model.factors).toHaveLength(0);
+});
+
+it("keeps the edited document but not the undo history after a reload", () => {
+  const { store, project } = reloadAfter(() => {});
+  expect(project.document.model.factors).toHaveLength(1);
+  expect(store.canUndo(project.id)).toBe(false);
 });

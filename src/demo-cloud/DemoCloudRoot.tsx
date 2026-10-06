@@ -11,6 +11,7 @@ import {
   type DemoProjectSummary,
   type DemoRole,
   type DemoSharedControls,
+  type DemoStorage,
 } from "./demo-store";
 import "../cloud/cloud.css";
 import "./demo.css";
@@ -92,6 +93,15 @@ function DemoInvitePanel({ project }: { project: DemoProjectSummary }) {
 }
 
 type WorkbookPreview = Extract<DemoImport, { kind: "workbook" }>;
+
+// 一部のブラウザ設定では localStorage へのアクセス自体が例外になる
+function browserStorage(): DemoStorage | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
 
 const MAX_SHOWN_ISSUES = 50;
 
@@ -218,7 +228,7 @@ function DemoImportPanel({
 }
 
 export function DemoCloudRoot({ renderLocal, renderProject }: Props) {
-  const [store] = useState(() => new DemoCloudStore());
+  const [store] = useState(() => new DemoCloudStore(browserStorage()));
   const [local, setLocal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [twoEditor, setTwoEditor] = useState(false);
@@ -370,6 +380,18 @@ export function DemoCloudRoot({ renderLocal, renderProject }: Props) {
             <span>Signed in as {store.user?.email}</span>
             <button onClick={withUpdate(() => store.signOut())}>
               Sign out
+            </button>
+            <button
+              onClick={withUpdate(() => {
+                if (
+                  window.confirm(
+                    "Reset the demo? Projects you created or changed in this browser will be removed.",
+                  )
+                )
+                  store.reset();
+              })}
+            >
+              Reset demo
             </button>
           </div>
           {error && (

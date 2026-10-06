@@ -39,3 +39,32 @@ test("Create project is disabled while the name is only whitespace", async ({
   await page.getByLabel("Project name").fill("x");
   await expect(create).toBeEnabled();
 });
+
+test("keeps a created project after reload and resets on request (issue #16)", async ({
+  page,
+}) => {
+  await page.getByLabel("Project name").fill("Survives reload");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Back to projects" }).click();
+
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Continue with Google (demo)" })
+    .click();
+  const items = page.locator("ul.cloud-projects > li");
+  await expect(items).toHaveCount(4);
+  await expect(items.first()).toContainText("Survives reload");
+
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await expect(items).toHaveCount(4);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await expect(items).toHaveCount(3);
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Continue with Google (demo)" })
+    .click();
+  await expect(items).toHaveCount(3);
+});
