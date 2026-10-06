@@ -582,3 +582,17 @@ it("rejects an invalid imported model without adding a project", () => {
   ).toThrow();
   expect(store.listProjects()).toHaveLength(3);
 });
+
+it("allows importing for owners and editors but not viewers", () => {
+  const store = new DemoCloudStore();
+  store.signIn();
+  const byRole = Object.fromEntries(
+    store
+      .listProjects()
+      .map((project) => [
+        project.role,
+        createDemoControls(store, project, () => {}).allowImport,
+      ]),
+  );
+  expect(byRole).toEqual({ owner: true, editor: true, viewer: false });
+});

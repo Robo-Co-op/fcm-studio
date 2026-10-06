@@ -23,7 +23,8 @@ interface Props {
 function DemoBanner() {
   return (
     <div className="demo-banner" role="status">
-      Demo mode — this is a mock preview. No real data or AI is used.
+      Demo mode — sign-in and sharing are simulated. Projects stay in this
+      browser; AI proposals may use a live model.
     </div>
   );
 }

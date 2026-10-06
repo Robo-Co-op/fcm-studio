@@ -222,6 +222,7 @@ export class DemoCloudStore {
 
 export interface DemoSharedControls {
   readOnly: boolean;
+  allowImport: boolean;
   role: DemoRole;
   status: string;
   onChange: (next: Project) => void;
@@ -282,6 +283,7 @@ export function createDemoControls(
   const id = project.id;
   return {
     readOnly: project.role === "viewer",
+    allowImport: project.role !== "viewer",
     role: project.role,
     status: "Demo project · not saved to the cloud",
     onChange: (next) => store.change(id, next),
