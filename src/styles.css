@@ -491,14 +491,19 @@ hr {
 }
 .map-legend {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 17px;
-  height: 34px;
+  gap: 6px 17px;
+  min-height: 34px;
   background: #fbfcf7;
   border-top: 1px solid #e8eddf;
-  padding: 0 14px;
-  font-size: 8px;
-  color: #88917f;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: #6f7a68;
+}
+.map-legend > .map-hint {
+  flex-basis: 100%;
+  color: #3f5a4e;
 }
 .map-legend > span {
   display: flex;
@@ -923,6 +928,7 @@ textarea {
 }
 .relationship-sentence {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .direction-toggle {
   display: grid;

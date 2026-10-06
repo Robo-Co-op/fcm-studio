@@ -1139,6 +1139,12 @@ export default function App({
                   <Controls showInteractive={false} />
                 </ReactFlow>
                 <div className="map-legend">
+                  {!readOnly && model.factors.length >= 2 && (
+                    <span className="map-hint">
+                      Drag from a card’s right dot to another card to connect
+                      them, then choose ↑ increases or ↓ decreases.
+                    </span>
+                  )}
                   <span>
                     <i className="line-pos" />
                     Positive influence
@@ -1360,6 +1366,7 @@ export default function App({
                       <label className="field-label">Strength</label>
                       <div
                         className="presets"
+                        role="group"
                         aria-label="Relationship strength"
                       >
                         {STRENGTHS.map((n) => (
@@ -1381,8 +1388,7 @@ export default function App({
                         ))}
                       </div>
                       <p className="note">
-                        0 removes this relationship. Reverse influence is edited
-                        separately.
+                        Reverse influence is edited separately.
                       </p>
                       <span className="provenance">
                         Source: {edge?.provenance ?? "no relationship"}
