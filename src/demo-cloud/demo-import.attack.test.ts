@@ -1,6 +1,7 @@
 // 取り込み（信頼できないファイル）に対する攻撃・異常入力の一覧。block は例外で拒否、allow は作成まで通ること
 import { afterAll, expect, it } from "vitest";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { readDemoImport, workbookToProjectInput } from "./demo-import";
 import { DemoCloudStore } from "./demo-store";
 
@@ -280,9 +281,8 @@ const cases: [string, () => File | Promise<File>, "block" | "allow"][] = [
       ),
     "block",
   ],
-  // 既知の挙動: excel.ts の範囲検出が空ラベルの手前で行列を切る（プレビューに "1 factors" と範囲が出る）。issue #18 で扱う
   [
-    "xlsx blank label (matrix cut at the blank, shown in preview)",
+    "xlsx blank label with weights beyond it",
     () =>
       xlsx(
         "b.xlsx",
@@ -292,6 +292,90 @@ const cases: [string, () => File | Promise<File>, "block" | "allow"][] = [
           [0, 0],
         ],
       ),
+    "block",
+  ],
+  [
+    "xlsx weight outside the matrix",
+    async () => {
+      const book = new ExcelJS.Workbook();
+      const sheet = book.addWorksheet("FCM Values");
+      sheet.getCell("B2").value = "Agenda";
+      ["A", "B"].forEach((label, i) => {
+        sheet.getCell(2, i + 3).value = label;
+        sheet.getCell(i + 3, 2).value = label;
+      });
+      sheet.getCell("C3").value = 0;
+      sheet.getCell("D3").value = 0.5;
+      sheet.getCell("C4").value = 0;
+      sheet.getCell("D4").value = 0;
+      sheet.getCell("F3").value = 0.9;
+      return new File(
+        [(await book.xlsx.writeBuffer()) as ArrayBuffer],
+        "o.xlsx",
+      );
+    },
+    "block",
+  ],
+  [
+    "xlsx with 25 sheets",
+    async () => {
+      const book = new ExcelJS.Workbook();
+      const sheet = book.addWorksheet("FCM Values");
+      ["A", "B"].forEach((label, i) => {
+        sheet.getCell(2, i + 3).value = label;
+        sheet.getCell(i + 3, 2).value = label;
+        [0, 0.5].forEach((w, j) => (sheet.getCell(i + 3, j + 3).value = w));
+      });
+      for (let i = 0; i < 24; i++) book.addWorksheet(`S${i}`);
+      return new File(
+        [(await book.xlsx.writeBuffer()) as ArrayBuffer],
+        "s.xlsx",
+      );
+    },
+    "block",
+  ],
+  [
+    "zip bomb (60 MB of zeros, compressed below 1 MB)",
+    async () => {
+      // 正しいワークブックに 60 MB の詰め物を足す。サイズ検査がなければ取り込めてしまう形
+      const valid = await xlsx(
+        "v.xlsx",
+        ["A", "B"],
+        [
+          [0, 0.5],
+          [0, 0],
+        ],
+      );
+      const zip = await JSZip.loadAsync(await valid.arrayBuffer());
+      zip.file("xl/padding.bin", new Uint8Array(60 * 1024 * 1024));
+      return new File(
+        [
+          await zip.generateAsync({
+            type: "arraybuffer",
+            compression: "DEFLATE",
+          }),
+        ],
+        "bomb.xlsx",
+      );
+    },
+    "block",
+  ],
+  [
+    "rich text labels",
+    async () => {
+      const book = new ExcelJS.Workbook();
+      const sheet = book.addWorksheet("FCM Values");
+      const rich = (text: string) => ({ richText: [{ text }] });
+      ["A", "B"].forEach((label, i) => {
+        sheet.getCell(2, i + 3).value = rich(label);
+        sheet.getCell(i + 3, 2).value = rich(label);
+        [0, -0.5].forEach((w, j) => (sheet.getCell(i + 3, j + 3).value = w));
+      });
+      return new File(
+        [(await book.xlsx.writeBuffer()) as ArrayBuffer],
+        "r.xlsx",
+      );
+    },
     "allow",
   ],
   [

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import {
   exportWorkbook,
   inspectWorkbook,
@@ -112,5 +113,150 @@ describe("Excel matrix adapter", () => {
     );
     expect(matrixCsv(model)).toContain('"\'=danger"');
     expect(matrixCsv(model)).toContain("0,0.7");
+  });
+});
+
+describe("Excel import hardening (issue #18)", () => {
+  it("reads labels written as rich text, numbers or hyperlinks", async () => {
+    const book = await fixture(
+      ["Alpha", "Beta", "Gamma"],
+      [
+        [0, 0.7, 0],
+        [0, 0, -0.3],
+        [0, 0, 0],
+      ],
+    );
+    const sheet = book.worksheets[0];
+    const rich = {
+      richText: [{ text: "Al" }, { font: { bold: true }, text: "pha" }],
+    };
+    sheet.getCell("C2").value = rich;
+    sheet.getCell("B3").value = rich;
+    sheet.getCell("D2").value = 2030;
+    sheet.getCell("B4").value = 2030;
+    const link = { text: "Gamma", hyperlink: "https://example.org" };
+    sheet.getCell("E2").value = link;
+    sheet.getCell("B5").value = link;
+    const preview = await inspect(book);
+    expect(preview.labels).toEqual(["Alpha", "2030", "Gamma"]);
+    expect(preview.issues).toEqual([]);
+  });
+
+  it("flags weights to the right of the matrix instead of dropping them", async () => {
+    const book = await fixture(
+      ["Alpha", "Beta"],
+      [
+        [0, 0.7],
+        [-0.3, 0],
+      ],
+    );
+    book.worksheets[0].getCell("E3").value = 0.5;
+    const issues = (await inspect(book)).issues.join(" ");
+    expect(issues).toMatch(/E3/);
+    expect(issues).toMatch(/outside/i);
+  });
+
+  it("flags weights below the matrix instead of dropping them", async () => {
+    const book = await fixture(
+      ["Alpha", "Beta"],
+      [
+        [0, 0.7],
+        [-0.3, 0],
+      ],
+    );
+    book.worksheets[0].getCell("D5").value = -0.4;
+    expect((await inspect(book)).issues.join(" ")).toMatch(/D5.*outside/i);
+  });
+
+  it("flags a trailing blank label whose column still has weights", async () => {
+    const book = await fixture(
+      ["Alpha", "Beta"],
+      [
+        [0, 0.7],
+        [-0.3, 0],
+      ],
+    );
+    book.worksheets[0].getCell("D2").value = null;
+    book.worksheets[0].getCell("B4").value = null;
+    const preview = await inspect(book);
+    expect(preview.issues.join(" ")).toMatch(/outside/i);
+    expect(() => previewToModel(preview)).toThrow(/Resolve import issues/);
+  });
+
+  it("flags labels longer than the 300-character factor limit", async () => {
+    const long = "x".repeat(301);
+    const preview = await inspect(await fixture([long, "Beta"]));
+    expect(preview.issues.join(" ")).toMatch(/300/);
+  });
+
+  it("refuses workbooks with too many sheets", async () => {
+    const book = await fixture();
+    for (let i = 0; i < 25; i++) book.addWorksheet(`Extra ${i}`);
+    await expect(inspect(book)).rejects.toThrow(/sheets/i);
+  });
+
+  // 本物のワークブックに 60 MB の詰め物を足した zip bomb を作り、加工して宣言値の偽装を試す
+  async function bomb(): Promise<Uint8Array> {
+    const zip = await JSZip.loadAsync(
+      (await (await fixture()).xlsx.writeBuffer()) as ArrayBuffer,
+    );
+    zip.file("xl/padding.bin", new Uint8Array(60 * 1024 * 1024));
+    return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+  }
+  function endOfCentralDirectory(bytes: Uint8Array): number {
+    for (let i = bytes.length - 22; i >= 0; i--)
+      if (
+        bytes[i] === 0x50 &&
+        bytes[i + 1] === 0x4b &&
+        bytes[i + 2] === 0x05 &&
+        bytes[i + 3] === 0x06
+      )
+        return i;
+    throw new Error("no EOCD");
+  }
+  it.each([
+    [
+      "a lying entry count",
+      (bytes: Uint8Array) => {
+        const copy = bytes.slice();
+        const end = endOfCentralDirectory(copy);
+        new DataView(copy.buffer).setUint16(end + 8, 1, true);
+        new DataView(copy.buffer).setUint16(end + 10, 1, true);
+        return copy;
+      },
+    ],
+    [
+      "junk bytes in front",
+      (bytes: Uint8Array) => {
+        const copy = new Uint8Array(bytes.length + 100);
+        copy.set(bytes, 100);
+        return copy;
+      },
+    ],
+    [
+      "a long tail after the archive",
+      (bytes: Uint8Array) => {
+        const copy = new Uint8Array(bytes.length + 70000);
+        copy.set(bytes, 0);
+        return copy;
+      },
+    ],
+  ])("still refuses a zip bomb with %s", async (_, tamper) => {
+    const data = tamper(await bomb());
+    await expect(
+      inspectWorkbook(data.buffer.slice(0) as ArrayBuffer),
+    ).rejects.toThrow(/50 MB/);
+  });
+
+  it("refuses archives that expand to more than 50 MB before parsing them", async () => {
+    const zip = new JSZip();
+    zip.file("[Content_Types].xml", "<Types/>");
+    zip.file("xl/padding.bin", new Uint8Array(60 * 1024 * 1024));
+    const data = await zip.generateAsync({
+      type: "arraybuffer",
+      compression: "DEFLATE",
+    });
+    expect(data.byteLength).toBeLessThan(1024 * 1024);
+    await expect(inspectWorkbook(data)).rejects.toThrow(/50 MB/);
   });
 });

@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { COLORS, id, validateModel, type Model } from "./model";
 
 export interface ImportPreview {
@@ -10,13 +11,76 @@ export interface ImportPreview {
   range: string;
 }
 
-const labelText = (value: ExcelJS.CellValue): string =>
-  typeof value === "string" ? value : "";
+// 書式付きで貼り付けたラベル（リッチテキスト）、数値、ハイパーリンクも文字として読む
+const labelText = (value: ExcelJS.CellValue): string => {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (value && typeof value === "object") {
+    if ("richText" in value && Array.isArray(value.richText))
+      return value.richText.map((part) => part.text).join("");
+    if ("hyperlink" in value && typeof value.text === "string")
+      return value.text;
+  }
+  return "";
+};
+
+const MAX_SHEETS = 20;
+const MAX_EXPANDED_BYTES = 50 * 1024 * 1024;
+const MAX_LABEL = 300;
+const OUTSIDE_SCAN = 5;
+
+interface InflatingFile {
+  dir: boolean;
+  internalStream(type: "uint8array"): JSZip.JSZipStreamHelper<Uint8Array>;
+}
+
+// ExcelJS の dist に同梱された JSZip と同じ版（package.json で 3.10.1 に固定）で開き、実際に展開したバイト数を数えて上限で打ち切る。
+// zip の宣言サイズや件数は偽装できるので、数えるのは展開結果だけにする
+async function assertSafeArchive(data: ArrayBuffer) {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(data);
+  } catch {
+    return; // 同じパーサーを使う ExcelJS が、読めない理由を利用者向けに返す
+  }
+  const files = Object.entries(zip.files);
+  const sheets = files.filter(([name]) =>
+    /^xl\/worksheets\/[^/]+\.xml$/i.test(name),
+  ).length;
+  if (sheets > MAX_SHEETS)
+    throw new Error(
+      `This workbook has ${sheets} sheets. FCM Studio reads workbooks with up to ${MAX_SHEETS} sheets; save the matrix sheet on its own.`,
+    );
+  let total = 0;
+  for (const [, file] of files) {
+    const entry = file as unknown as InflatingFile;
+    if (entry.dir) continue;
+    await new Promise<void>((resolve, reject) => {
+      const stream = entry.internalStream("uint8array");
+      stream
+        .on("data", (chunk) => {
+          total += chunk.length;
+          if (total > MAX_EXPANDED_BYTES) {
+            stream.pause();
+            reject(
+              new Error(
+                "This workbook expands to more than 50 MB. Save a smaller copy with only the matrix sheet.",
+              ),
+            );
+          }
+        })
+        .on("error", reject)
+        .on("end", resolve)
+        .resume();
+    });
+  }
+}
 const normalize = (label: string): string => label.trim().toLowerCase();
 
 export async function inspectWorkbook(
   data: ArrayBuffer,
 ): Promise<ImportPreview> {
+  await assertSafeArchive(data);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(data);
   const sheets = [...workbook.worksheets].sort(
@@ -88,6 +152,10 @@ export async function inspectWorkbook(
   const seen = new Set<string>();
   labels.forEach((label, i) => {
     if (!label.trim()) issues.push(`Column ${i + 1} has a blank factor label.`);
+    else if (label.trim().length > MAX_LABEL)
+      issues.push(
+        `Column ${i + 1} label is longer than ${MAX_LABEL} characters.`,
+      );
     else if (seen.has(normalize(label)))
       issues.push(`Duplicate factor label: ${label}.`);
     seen.add(normalize(label));
@@ -114,13 +182,26 @@ export async function inspectWorkbook(
       return value;
     }),
   );
+  // 検出した行列の外にある数値は、ラベルの欠けなどで黙って捨てられるので問題として出す
+  const range = `${sheet.getCell(row + 1, col + 1).address}:${sheet.getCell(row + height, col + width).address}`;
+  const outside = (r: number, c: number) => {
+    const cell = sheet.getCell(r, c);
+    if (typeof cell.value === "number")
+      issues.push(
+        `${cell.address}: this weight is outside the detected matrix (${range}). Is a factor label missing?`,
+      );
+  };
+  for (let i = 1; i <= height; i++)
+    for (let j = 1; j <= OUTSIDE_SCAN; j++) outside(row + i, col + width + j);
+  for (let i = 1; i <= OUTSIDE_SCAN; i++)
+    for (let j = 1; j <= width; j++) outside(row + height + i, col + j);
   return {
     sheet: sheet.name,
     agenda: labelText(sheet.getCell(row, col).value),
     labels,
     weights,
     issues,
-    range: `${sheet.getCell(row + 1, col + 1).address}:${sheet.getCell(row + height, col + width).address}`,
+    range,
   };
 }
 
