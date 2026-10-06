@@ -9,3 +9,4 @@ playwright-report/
 !NOTICE
 research/
 *.log
+.vercel
