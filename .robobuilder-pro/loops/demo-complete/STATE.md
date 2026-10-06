@@ -1,7 +1,7 @@
 # STATE: demo-complete
 
 ## Current status
-idle（2周目 #20〜#23 完了、Lander の Excel 待ち）— 2026-10-06
+idle（バックログ完了、Lander の Excel 待ち）— 2026-10-06
 
 ## Facts (durable, cross-iteration)
 - ブランチ `feat/demo-complete` は `feat/demo-mode`@`290ae32`（PR #12、未マージ）から派生。PR は #12 を base にするか、#12 マージ後に main に向け直す
@@ -26,11 +26,12 @@ idle（2周目 #20〜#23 完了、Lander の Excel 待ち）— 2026-10-06
 - [x] 10. マップ上の編集の分かりやすさ（常時の接続ヒント、接続直後に正負を選べる）— P1
 - [x] 11. Excel テンプレートのダウンロード（正負の値を書き込める雛形）— P1
 - [x] 6. README ロードマップ #17（0136a2b）
-- [ ] 7. excel.ts の堅牢化 #18（zip bomb・シート数・空ラベル）— P2、次ループ候補
+- [x] 7. excel.ts の堅牢化 #18（書式付きラベル・行列外の値・zip bomb は実展開バイト計数）
+- [x] 12. CI フレーク #25（貼り付け前に同期完了を待つ）
 
 ## Metrics
-- iterations run: 9 items (#13〜#17, #20〜#23)
-- gate pass rate: 9/9（反証で赤を確認したものを含む）
+- iterations run: 11 items (#13〜#18, #20〜#23, #25)
+- gate pass rate: 11/11（反証で赤を確認したものを含む）
 
 ## Flags / blockers
 - HITL: Supabase 本番接続（Pro org の新規プロジェクトは月約$10、無料 org は未作成）、Google OAuth クライアント
