@@ -141,13 +141,33 @@ function DemoImportPanel({
     }
   };
 
+  const downloadTemplate = async () => {
+    try {
+      const { templateWorkbook } = await import("./demo-import");
+      const url = URL.createObjectURL(
+        new Blob([await templateWorkbook()], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "FCM Studio template.xlsx";
+      link.click();
+      // 即時に破棄すると Safari などでダウンロードが中断されることがある
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (failure) {
+      onError((failure as Error).message);
+    }
+  };
+
   const preview = pending?.preview;
   return (
     <div className="cloud-import">
       <h3>Import a workbook</h3>
       <p>
         Start from an Excel weight matrix (.xlsx) or an FCM Studio backup
-        (.json). The file stays in this browser.
+        (.json). The file stays in this browser. The template shows the layout:
+        rows cause columns, weights from −1 to +1.
       </p>
       <input
         ref={fileRef}
@@ -163,6 +183,7 @@ function DemoImportPanel({
       <button disabled={busy} onClick={() => fileRef.current?.click()}>
         {busy ? "Reading…" : "Choose .xlsx or .json"}
       </button>
+      <button onClick={() => void downloadTemplate()}>Download template</button>
       {preview && (
         <div className="demo-import-preview" aria-label="Import preview">
           <h4>

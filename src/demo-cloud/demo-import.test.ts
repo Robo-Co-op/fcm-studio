@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import ExcelJS from "exceljs";
-import { readDemoImport, workbookToProjectInput } from "./demo-import";
+import {
+  readDemoImport,
+  templateWorkbook,
+  workbookToProjectInput,
+} from "./demo-import";
 import { MAX_NAME } from "./demo-store";
 
 async function workbookFile(name = "Lander survey.xlsx") {
@@ -164,4 +168,23 @@ it("reads columns as sources when transposed", async () => {
       weight: 0.7,
     }),
   );
+});
+
+it("offers a template that imports cleanly with positive and negative examples", async () => {
+  const template = new File(
+    [await templateWorkbook()],
+    "FCM Studio template.xlsx",
+  );
+  const result = await readDemoImport(template);
+  if (result.kind !== "workbook") throw new Error("expected a workbook");
+  expect(result.preview.issues).toEqual([]);
+  const input = workbookToProjectInput(result.preview, false, result.fileName);
+  const label = (id: string) =>
+    input.model.factors.find((f) => f.id === id)!.label;
+  const pairs = input.model.relationships.map(
+    (r) => `${label(r.source)}→${label(r.target)}=${r.weight}`,
+  );
+  expect(pairs).toContain("Communication→Conflict=-0.7");
+  expect(pairs).toContain("Communication→Trust=0.3");
+  expect(input.name).toBe("FCM Studio template");
 });
