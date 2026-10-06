@@ -15,16 +15,17 @@ running — 2026-10-06
 - omi の 2026-10-06 17:15 の会議記録は MCP 接続不可で未取得
 
 ## Open work (the backlog — one item picked per iteration)
-- [ ] 1. デモのダッシュボードから新規プロジェクトを作成する（名前・アジェンダ）— P0
-- [ ] 2. デモのダッシュボードから Excel(.xlsx) を取り込み、新規デモプロジェクトとして作成する（プレビュー・エラー表示付き）— P0
-- [ ] 3. デモのエディタ内で、owner/editor に Import（現在のプロジェクトへ置き換え取り込み）と Ask AI を有効化する。viewer は無効のまま — P1
-- [ ] 4. デモ状態をリロード後も保持する（localStorage、reset ボタン付き）— P1
-- [ ] 5. Lander の会議フィードバックを反映する（omi 復旧後に追加）— 未取得
-- [ ] 6. README に OSS / 協同組合化ロードマップを追記（Lander 側の Vercel+Supabase+Euria への移行）— P2
+- [x] 1. 新規プロジェクト作成 #13（3e2ae6b）
+- [x] 2. Excel/JSON 取り込み #14（2ac0c51）
+- [x] 3. エディタ内 Import / AI #15（4043d72）
+- [x] 4. 状態の保持 #16（93c4e55）
+- [ ] 5. Lander の会議フィードバックを反映する（omi 復旧後に追加）— 未取得。ブロッカー
+- [x] 6. README ロードマップ #17（0136a2b）
+- [ ] 7. excel.ts の堅牢化 #18（zip bomb・シート数・空ラベル）— P2、次ループ候補
 
 ## Metrics
-- iterations run: 0
-- gate pass rate: 0/0
+- iterations run: 5 items (#13 #14 #15 #16 #17)
+- gate pass rate: 5/5（反証で赤を確認したものを含む）
 
 ## Flags / blockers
 - HITL: Supabase 本番接続（Pro org の新規プロジェクトは月約$10、無料 org は未作成）、Google OAuth クライアント

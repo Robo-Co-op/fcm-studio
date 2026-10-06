@@ -22,6 +22,8 @@ STATE.md のバックログ（AFK 分）がすべて完了し、gate が green�
   - F2 制限パス（`server/cloud-draft.mjs` に1行追記）→ BLOCK（restricted paths changed）
   - F3 テスト削除（`src/excel.test.ts` を退避）→ BLOCK（165 < 175）。既存の `npm run gate` だけなら PASS していたケースで、件数チェックの追加が効いた
 - **Ratchet:** テストが増えたら `GATE_MIN_TESTS` の既定値を引き上げる
+- **初回で通ったテストのルール（loop-retro 2026-10-06）:** 新規テストが初回から green なら、対象の実装に欠陥を入れて赤になるのを見てから採用する。欠陥の内容と結果は run-log に書く。状態を丸ごと保存する系のテストは、変更ごとに再読込しないと前の保存に隠れる（#16 で実例あり）。未計測（champion-challenger は未実施）。既に運用していた手順を明文化しただけ
+- **E2E の実行者:** このセッションの作業ディレクトリは git リポジトリではないため、`e2e-tester` エージェント（worktree 分離が必須）は起動できない。E2E は general-purpose エージェントか、メインセッションで `npm run test:e2e:demo` を使う
 
 ## Autonomy level
 L1 report-only（PR は作るが、マージと本番デプロイは Jin に確認する）
