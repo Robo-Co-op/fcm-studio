@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import ExcelJS from "exceljs";
 
@@ -76,4 +77,33 @@ test("rejects an unsupported file with a readable error", async ({ page }) => {
     buffer: Buffer.from("a,b\n1,2"),
   });
   await expect(page.getByRole("alert")).toContainText(".xlsx or .json");
+});
+
+test("downloads a template that imports back as a project with signed relationships (issue #23)", async ({
+  page,
+}) => {
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download template" }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe("FCM Studio template.xlsx");
+  const path = await download.path();
+
+  await page.getByLabel("Workbook file").setInputFiles({
+    name: download.suggestedFilename(),
+    mimeType: XLSX,
+    buffer: readFileSync(path),
+  });
+  const preview = page.getByLabel("Import preview");
+  await expect(preview).toContainText("4 factors");
+  await expect(preview).toContainText("Communication");
+  await page
+    .getByRole("button", { name: "Create project from workbook" })
+    .click();
+  await expect(
+    page.locator(".react-flow__edge").filter({ hasText: "−0.7" }),
+  ).toHaveCount(1);
+  await page.getByRole("button", { name: "Back to projects" }).click();
+  await expect(page.locator("ul.cloud-projects > li").first()).toContainText(
+    "4 factors · 4 connections",
+  );
 });

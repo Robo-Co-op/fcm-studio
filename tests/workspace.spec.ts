@@ -29,7 +29,7 @@ test("map and matrix share factors, signed edges, identity, deletion and undo", 
     page.getByRole("spinbutton", { name: "Relationship weight" }),
   ).toHaveValue("-0.7");
   await expect(
-    page.locator(".react-flow__edge").filter({ hasText: "-0.7" }),
+    page.locator(".react-flow__edge").filter({ hasText: "−0.7" }),
   ).toHaveCount(2);
   await page.getByRole("button", { name: /11\s*Access to finance/ }).click();
   await page

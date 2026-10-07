@@ -81,6 +81,7 @@ test("owner drafts and accepts an AI proposal in a shared project", async ({
 
 test("viewer cannot import or ask AI", async ({ page }) => {
   await openProject(page, "Shared baseline review");
+  await expect(page.getByText(/Drag from a card’s right dot/)).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Import", exact: true }),
   ).toBeDisabled();

@@ -47,6 +47,22 @@ import {
 import type { Model, Project, Run, Scenario, SimulationResult } from "./model";
 import { demoProject } from "./demo";
 import { describeChanges } from "./proposals";
+import { browserStorage } from "./browser-storage";
+import {
+  STRENGTHS,
+  describeRelationship,
+  withDirection,
+  withStrength,
+} from "./relationship";
+import {
+  LINE_THICKNESSES,
+  LINE_THICKNESS_LABELS,
+  edgeAppearance,
+  formatWeight,
+  loadLineThickness,
+  saveLineThickness,
+  type LineThickness,
+} from "./edge-style";
 import type { ImportPreview } from "./excel";
 
 function FactorNode({ data, selected }: NodeProps) {
@@ -69,7 +85,6 @@ function FactorNode({ data, selected }: NodeProps) {
   );
 }
 const nodeTypes = { factor: FactorNode };
-const presets = [-0.9, -0.7, -0.3, -0.1, 0, 0.1, 0.3, 0.7, 0.9];
 const pairKey = (s: string, t: string) => JSON.stringify([s, t]);
 function download(data: BlobPart, name: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([data], { type }));
@@ -223,6 +238,9 @@ export default function App({
     target: string;
   } | null>(null);
   const [factorId, setFactorId] = useState<string | null>(null);
+  const [lineThickness, setLineThickness] = useState<LineThickness>(() =>
+    loadLineThickness(browserStorage()),
+  );
   const [dragPositions, setDragPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
@@ -447,24 +465,28 @@ export default function App({
         selected?.source === e.source && selected?.target === e.target;
       const connected =
         !factorId || e.source === factorId || e.target === factorId;
+      const look = edgeAppearance(e.weight, lineThickness, active);
       return {
         id: pairKey(e.source, e.target),
         source: e.source,
         target: e.target,
-        label: `${e.weight > 0 ? "+" : ""}${e.weight}`,
+        label: formatWeight(e.weight),
         type: "default",
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: e.weight > 0 ? "#4c927c" : "#cf766c",
+          color: look.stroke,
+          // 既定の strokeWidth 単位だと太い線で矢印が巨大になるため px で指定する
+          markerUnits: "userSpaceOnUse",
+          width: 10 + look.strokeWidth * 2,
+          height: 10 + look.strokeWidth * 2,
         },
         style: {
-          stroke: e.weight > 0 ? "#4c927c" : "#cf766c",
-          strokeWidth: active ? 4 : 1 + Math.abs(e.weight) * 2,
+          ...look,
           opacity: connected ? (active ? 1 : 0.65) : 0.12,
         },
         labelStyle: {
           fill: active ? "#153b30" : "#5b6b66",
-          fontSize: 10,
+          fontSize: lineThickness === "thin" ? 10 : 12,
           fontWeight: 600,
         },
         labelBgStyle: { fill: "#fbfcf9", fillOpacity: 0.9 },
@@ -1117,6 +1139,12 @@ export default function App({
                   <Controls showInteractive={false} />
                 </ReactFlow>
                 <div className="map-legend">
+                  {!readOnly && model.factors.length >= 2 && (
+                    <span className="map-hint">
+                      Drag from a card’s right dot to another card to connect
+                      them, then choose ↑ increases or ↓ decreases.
+                    </span>
+                  )}
                   <span>
                     <i className="line-pos" />
                     Positive influence
@@ -1125,6 +1153,21 @@ export default function App({
                     <i className="line-neg" />
                     Negative influence
                   </span>
+                  <select
+                    aria-label="Line thickness"
+                    value={lineThickness}
+                    onChange={(e) => {
+                      const next = e.target.value as LineThickness;
+                      setLineThickness(next);
+                      saveLineThickness(browserStorage(), next);
+                    }}
+                  >
+                    {LINE_THICKNESSES.map((value) => (
+                      <option key={value} value={value}>
+                        {LINE_THICKNESS_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     aria-label="Filter relationships"
                     value={filter}
@@ -1267,11 +1310,42 @@ export default function App({
                         <span className="muted">→</span>{" "}
                         {label(selected.target)}
                       </h2>
-                      <p className="muted">
-                        More of the source leads to{" "}
-                        {edge && edge.weight < 0 ? "less" : "more"} of the
-                        target.
+                      <p className="muted relationship-sentence">
+                        {describeRelationship(
+                          label(selected.source),
+                          label(selected.target),
+                          edge?.weight ?? 0,
+                        )}
                       </p>
+                      <div
+                        className="direction-toggle"
+                        role="group"
+                        aria-label="Relationship direction"
+                      >
+                        {(["increase", "decrease"] as const).map((dir) => {
+                          const current = edge?.weight ?? 0;
+                          const on =
+                            dir === "increase" ? current > 0 : current < 0;
+                          return (
+                            <button
+                              key={dir}
+                              className={`${dir} ${on ? "chosen" : ""}`}
+                              aria-pressed={on}
+                              onClick={() =>
+                                weight(
+                                  selected.source,
+                                  selected.target,
+                                  withDirection(current, dir),
+                                )
+                              }
+                            >
+                              {dir === "increase"
+                                ? "↑ Increases (+)"
+                                : "↓ Decreases (−)"}
+                            </button>
+                          );
+                        })}
+                      </div>
                       <label className="field-label">Influence weight</label>
                       <input
                         aria-label="Relationship weight"
@@ -1289,25 +1363,32 @@ export default function App({
                           )
                         }
                       />
-                      <div className="presets">
-                        {presets.map((n) => (
+                      <label className="field-label">Strength</label>
+                      <div
+                        className="presets"
+                        role="group"
+                        aria-label="Relationship strength"
+                      >
+                        {STRENGTHS.map((n) => (
                           <button
                             key={n}
                             className={
-                              (edge?.weight ?? 0) === n ? "chosen" : ""
+                              Math.abs(edge?.weight ?? 0) === n ? "chosen" : ""
                             }
                             onClick={() =>
-                              weight(selected.source, selected.target, n)
+                              weight(
+                                selected.source,
+                                selected.target,
+                                withStrength(edge?.weight ?? 0, n),
+                              )
                             }
                           >
-                            {n > 0 ? "+" : ""}
                             {n}
                           </button>
                         ))}
                       </div>
                       <p className="note">
-                        0 removes this relationship. Reverse influence is edited
-                        separately.
+                        Reverse influence is edited separately.
                       </p>
                       <span className="provenance">
                         Source: {edge?.provenance ?? "no relationship"}

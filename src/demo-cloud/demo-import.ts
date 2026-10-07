@@ -1,5 +1,10 @@
 // ExcelJS を含むため、呼び出し側は動的 import で遅延読み込みすること
-import { inspectWorkbook, previewToModel, type ImportPreview } from "../excel";
+import {
+  exportWorkbook,
+  inspectWorkbook,
+  previewToModel,
+  type ImportPreview,
+} from "../excel";
 import { validateProject, type Model } from "../model";
 import { MAX_NAME } from "./demo-store";
 
@@ -90,4 +95,54 @@ export function workbookToProjectInput(
     agenda: preview.agenda,
     model: previewToModel(preview, transpose),
   };
+}
+
+const templateFactor = (id: string, label: string, i: number) => ({
+  id,
+  label,
+  color: "#dbe7f4",
+  x: (i % 5) * 230,
+  y: Math.floor(i / 5) * 140,
+  provenance: "human" as const,
+});
+
+// 記入例として正と負の関係を1つずつ以上入れた雛形（行が原因、列が結果）
+export function templateWorkbook(): Promise<ArrayBuffer> {
+  return exportWorkbook(
+    {
+      factors: [
+        templateFactor("communication", "Communication", 0),
+        templateFactor("conflict", "Conflict", 1),
+        templateFactor("trust", "Trust", 2),
+        templateFactor("participation", "Participation", 3),
+      ],
+      relationships: [
+        {
+          source: "communication",
+          target: "conflict",
+          weight: -0.7,
+          provenance: "human",
+        },
+        {
+          source: "communication",
+          target: "trust",
+          weight: 0.3,
+          provenance: "human",
+        },
+        {
+          source: "trust",
+          target: "participation",
+          weight: 0.7,
+          provenance: "human",
+        },
+        {
+          source: "conflict",
+          target: "trust",
+          weight: -0.3,
+          provenance: "human",
+        },
+      ],
+    },
+    "Replace with your research question. Rows cause columns: more Communication leads to less Conflict (-0.7).",
+  );
 }
