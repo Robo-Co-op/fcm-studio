@@ -175,6 +175,7 @@ export default function App({
   onSaveScenario,
   onSaveRun,
   requestAiProposal,
+  allowSharedImport = false,
 }: {
   initialProject?: Project;
   readOnly?: boolean;
@@ -188,8 +189,15 @@ export default function App({
   onSaveBaseline?: (model: Model) => Promise<void>;
   onSaveScenario?: (scenario: Scenario) => Promise<void>;
   onSaveRun?: (run: Run) => Promise<void>;
-  requestAiProposal?: (projectId: string, instruction: string) => Promise<Response>;
+  requestAiProposal?: (
+    projectId: string,
+    instruction: string,
+  ) => Promise<Response>;
+  allowSharedImport?: boolean;
 }) {
+  const shared = Boolean(initialProject);
+  const aiLocked = readOnly || (shared && !requestAiProposal);
+  const importLocked = readOnly || (shared && !allowSharedImport);
   const [project, setProjectState] = useState<Project>(() =>
     clone(initialProject ?? demoProject()),
   );
@@ -481,6 +489,15 @@ export default function App({
     setFactorId(null);
     setProposal(null);
   };
+  // 共有プロジェクトでは ID・名前・共有ベースライン履歴を保ったまま、作業モデルだけを置き換える（Undo 可）
+  const replaceSharedModel = (next: Model) => {
+    validateModel(next);
+    resetRuntime();
+    edit(next);
+    setModal(null);
+    notify("Model replaced from the imported file. Use Undo to restore it.");
+    setTimeout(() => fitView(), 100);
+  };
   const importFile = async (file: File) => {
     try {
       if (file.size > 10 * 1024 * 1024)
@@ -488,6 +505,10 @@ export default function App({
       if (file.name.endsWith(".json")) {
         const p = JSON.parse(await file.text()) as Project;
         validateProject(p);
+        if (shared) {
+          replaceSharedModel(p.model);
+          return;
+        }
         resetRuntime();
         setProject(p);
         setResult(p.runs.at(-1) ?? null);
@@ -513,6 +534,10 @@ export default function App({
     if (!preview) return;
     try {
       const m = (await import("./excel")).previewToModel(preview, transpose);
+      if (shared) {
+        replaceSharedModel(m);
+        return;
+      }
       const candidate: Project = {
         version: 1,
         id: id(),
@@ -672,16 +697,16 @@ export default function App({
       const response = requestAiProposal
         ? await requestAiProposal(project.id, draftInstruction)
         : await fetch("/api/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agenda: project.agenda,
-          instruction: draftInstruction,
-          revision: project.revision,
-          model,
-        }),
-        signal: AbortSignal.timeout(55000),
-        });
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agenda: project.agenda,
+              instruction: draftInstruction,
+              revision: project.revision,
+              model,
+            }),
+            signal: AbortSignal.timeout(55000),
+          });
       const data = (await response.json()) as {
         revision: number;
         model: Model;
@@ -882,7 +907,7 @@ export default function App({
               {cloudStatus ?? saveStatus}
             </span>
             <button
-              disabled={readOnly || Boolean(initialProject)}
+              disabled={importLocked}
               className="btn subtle"
               onClick={() => setModal("import")}
             >
@@ -923,7 +948,7 @@ export default function App({
               New project
             </button>
             <button
-              disabled={readOnly || Boolean(initialProject)}
+              disabled={aiLocked}
               className="btn dark"
               onClick={() => setPanel("ai")}
             >
@@ -1228,9 +1253,7 @@ export default function App({
             <fieldset
               className="inspector-content"
               disabled={
-                panel === "inspector"
-                  ? readOnly
-                  : panel === "ai" && Boolean(initialProject)
+                panel === "inspector" ? readOnly : panel === "ai" && aiLocked
               }
               style={{ border: 0, margin: 0, minWidth: 0 }}
             >
@@ -1764,7 +1787,7 @@ export default function App({
                     <Sparkles size={15} />
                     {aiBusy ? "Drafting…" : "Generate proposal"}
                   </button>
-                  {!aiConfigured && (
+                  {!aiConfigured && !requestAiProposal && (
                     <p className="note">
                       Optional AI service is not configured. See the README to
                       start it locally with your provider credentials.
@@ -2054,15 +2077,16 @@ export default function App({
                       </div>
                     )}
                     <p className="note">
-                      Import replaces the current workspace. Export a backup
-                      first if needed.
+                      {shared
+                        ? "Import replaces this shared project's model for everyone. You can undo it."
+                        : "Import replaces the current workspace. Export a backup first if needed."}
                     </p>
                     <button
                       className="btn dark full"
                       disabled={preview.issues.length > 0}
                       onClick={acceptImport}
                     >
-                      Import as a new baseline
+                      {shared ? "Replace model" : "Import as a new baseline"}
                     </button>
                   </>
                 )}

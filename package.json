@@ -1,6 +1,6 @@
 {
   "name": "fcm-studio",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts",
+    "test:e2e:demo": "playwright test --config playwright.demo.config.ts",
     "server": "node server/index.mjs",
     "lint": "eslint .",
     "gate": "node scripts/gate.mjs",

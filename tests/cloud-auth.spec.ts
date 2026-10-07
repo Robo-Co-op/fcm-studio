@@ -127,9 +127,10 @@ test("restored session creates a private project and opens an editable map", asy
   await expect(
     page.getByRole("button", { name: "Add factor", exact: true }),
   ).toBeEnabled();
+  // 所有者は Euria の AI 提案を使える（サーバー側で認証・役割・クォータを検証。docs/cloud/DEPLOYMENT.md 手順5）
   await expect(
     page.getByRole("button", { name: "Explore with AI", exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await page.screenshot({
     path: "test-results/cloud-auth-project.png",
     fullPage: true,
