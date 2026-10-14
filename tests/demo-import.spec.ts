@@ -107,3 +107,37 @@ test("downloads a template that imports back as a project with signed relationsh
     "4 factors · 4 connections",
   );
 });
+
+test("blank weights need consent in demo project creation", async ({
+  page,
+}) => {
+  const buffer = await workbook([
+    [0, 0.7, 0],
+    [0, 0, -0.5],
+    [null, 0, 0],
+  ]);
+  const file = { name: "synthetic blanks.xlsx", mimeType: XLSX, buffer };
+  await page.getByLabel("Workbook file").setInputFiles(file);
+  const accept = page.getByRole("button", {
+    name: "Create project from workbook",
+  });
+  const consent = page.getByRole("checkbox", {
+    name: "Interpret blank weights as zero",
+  });
+  await expect(accept).toBeDisabled();
+  await expect(page.getByLabel("Import preview")).toContainText("C5");
+  await consent.check();
+  await expect(accept).toBeEnabled();
+  await page.getByLabel("Workbook file").setInputFiles(file);
+  await expect(consent).not.toBeChecked();
+  await expect(accept).toBeDisabled();
+  await consent.check();
+  await accept.click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "synthetic blanks" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Back to projects" }).click();
+  await expect(page.locator("ul.cloud-projects > li").first()).toContainText(
+    "3 factors · 2 connections",
+  );
+});

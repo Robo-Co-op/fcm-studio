@@ -1,3 +1,4 @@
+import { importIssues } from "../import-preview";
 import { useReducer, useRef, useState, type ReactNode } from "react";
 import type { Project } from "../model";
 import { browserStorage } from "../browser-storage";
@@ -106,10 +107,13 @@ function DemoImportPanel({
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<WorkbookPreview | null>(null);
   const [transpose, setTranspose] = useState(false);
+  const [blanksAsZero, setBlanksAsZero] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const read = async (file: File) => {
     setBusy(true);
+    setPending(null);
+    setBlanksAsZero(false);
     try {
       const { readDemoImport } = await import("./demo-import");
       const result = await readDemoImport(file);
@@ -133,7 +137,12 @@ function DemoImportPanel({
     try {
       const { workbookToProjectInput } = await import("./demo-import");
       onCreate(
-        workbookToProjectInput(pending.preview, transpose, pending.fileName),
+        workbookToProjectInput(
+          pending.preview,
+          transpose,
+          pending.fileName,
+          blanksAsZero,
+        ),
       );
       setPending(null);
     } catch (failure) {
@@ -161,6 +170,7 @@ function DemoImportPanel({
   };
 
   const preview = pending?.preview;
+  const previewIssues = preview ? importIssues(preview, blanksAsZero) : [];
   return (
     <div className="cloud-import">
       <h3>Import a workbook</h3>
@@ -210,14 +220,30 @@ function DemoImportPanel({
               <span key={index}>{label}</span>
             ))}
           </div>
-          {preview.issues.length > 0 && (
+          {preview.blankCells.length > 0 && (
+            <div className="cloud-note">
+              <p>
+                {preview.blankCells.length} blank weight(s):{" "}
+                {preview.blankCells.map((cell) => cell.address).join(", ")}
+              </p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={blanksAsZero}
+                  onChange={(event) => setBlanksAsZero(event.target.checked)}
+                />{" "}
+                Interpret blank weights as zero (no relationship)
+              </label>
+            </div>
+          )}
+          {previewIssues.length > 0 && (
             <div className="cloud-error" role="alert">
-              {preview.issues.slice(0, MAX_SHOWN_ISSUES).map((issue, index) => (
+              {previewIssues.slice(0, MAX_SHOWN_ISSUES).map((issue, index) => (
                 <p key={index}>{issue}</p>
               ))}
-              {preview.issues.length > MAX_SHOWN_ISSUES && (
+              {previewIssues.length > MAX_SHOWN_ISSUES && (
                 <p>
-                  …and {preview.issues.length - MAX_SHOWN_ISSUES} more issues.
+                  …and {previewIssues.length - MAX_SHOWN_ISSUES} more issues.
                 </p>
               )}
               <p>Fix these cells in the workbook and choose it again.</p>
@@ -227,7 +253,7 @@ function DemoImportPanel({
             <button onClick={() => setPending(null)}>Cancel</button>
             <button
               className="cloud-primary"
-              disabled={preview.issues.length > 0}
+              disabled={previewIssues.length > 0}
               onClick={() => void accept()}
             >
               Create project from workbook

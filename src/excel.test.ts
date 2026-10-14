@@ -260,3 +260,58 @@ describe("Excel import hardening (issue #18)", () => {
     await expect(inspectWorkbook(data)).rejects.toThrow(/50 MB/);
   });
 });
+
+describe("blank weight consent", () => {
+  it("previews O11 and requires explicit consent for a synthetic 13-factor matrix", async () => {
+    const labels = Array.from({ length: 13 }, (_, i) => `Factor ${i + 1}`);
+    const weights: unknown[][] = labels.map(() => labels.map(() => 0));
+    for (let i = 0; i < 32; i++)
+      weights[Math.floor(i / 12)][1 + (i % 12)] = 0.3;
+    weights[8][12] = null;
+    const book = await fixture(labels, weights);
+    book.worksheets[0].name = "FCMValues";
+    const preview = await inspect(book);
+    expect(preview.range).toBe("C3:O15");
+    expect(preview.blankCells).toEqual([
+      { address: "O11", row: 8, column: 12 },
+    ]);
+    expect(() => previewToModel(preview)).toThrow();
+    const model = previewToModel(preview, false, true);
+    expect(model.factors).toHaveLength(13);
+    expect(model.relationships).toHaveLength(32);
+    expect(
+      model.relationships.some((e) => e.source === model.factors[0].id),
+    ).toBe(true);
+    expect(
+      model.relationships.some((e) => e.target === model.factors[0].id),
+    ).toBe(false);
+    const transposed = previewToModel(preview, true, true);
+    expect(transposed.relationships).toHaveLength(32);
+    expect(
+      transposed.relationships.some(
+        (e) => e.source === transposed.factors[0].id,
+      ),
+    ).toBe(false);
+    expect(
+      transposed.relationships.some(
+        (e) => e.target === transposed.factors[0].id,
+      ),
+    ).toBe(true);
+    expect(() => previewToModel(preview)).toThrow(); // consent does not mutate the preview
+  });
+  it.each([" ", "0.7", { formula: "1/2", result: 0.5 }, 2])(
+    "consent never accepts nonblank invalid values %s",
+    async (value) => {
+      const preview = await inspect(
+        await fixture(
+          ["Alpha", "Beta"],
+          [
+            [null, value],
+            [0, 0],
+          ],
+        ),
+      );
+      expect(() => previewToModel(preview, false, true)).toThrow();
+    },
+  );
+});

@@ -1,3 +1,4 @@
+import { importIssues } from "./import-preview";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Background,
@@ -253,6 +254,9 @@ export default function App({
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [transpose, setTranspose] = useState(false);
+  const [blanksAsZero, setBlanksAsZero] = useState(false);
+  const importGeneration = useRef(0);
+  const previewIssues = preview ? importIssues(preview, blanksAsZero) : [];
   const [initial, setInitial] = useState<Record<string, number>>({});
   const [clamped, setClamped] = useState<Record<string, number>>({});
   const [result, setResult] = useState<Run | null>(null);
@@ -272,6 +276,7 @@ export default function App({
   } | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const appRef = useRef<HTMLDivElement>(null);
   const workerRef = useRef<Worker | null>(null);
   const baselineWorkerRef = useRef<Worker | null>(null);
   const runGeneration = useRef(0);
@@ -521,11 +526,15 @@ export default function App({
     setTimeout(() => fitView(), 100);
   };
   const importFile = async (file: File) => {
+    const generation = ++importGeneration.current;
+    setPreview(null);
+    setBlanksAsZero(false);
     try {
       if (file.size > 10 * 1024 * 1024)
         throw new Error("Choose a file smaller than 10 MB.");
       if (file.name.endsWith(".json")) {
         const p = JSON.parse(await file.text()) as Project;
+        if (generation !== importGeneration.current) return;
         validateProject(p);
         if (shared) {
           replaceSharedModel(p.model);
@@ -538,24 +547,32 @@ export default function App({
         setModal(null);
         notify("Project, scenarios, and run history restored.");
       } else {
-        setPreview(
-          await (
-            await import("./excel")
-          ).inspectWorkbook(await file.arrayBuffer()),
-        );
+        const nextPreview = await (
+          await import("./excel")
+        ).inspectWorkbook(await file.arrayBuffer());
+        if (generation !== importGeneration.current) return;
+        setPreview(nextPreview);
+        setBlanksAsZero(false);
         setTranspose(false);
         setModal("import");
       }
     } catch (e) {
-      notify((e as Error).message);
+      if (generation === importGeneration.current) notify((e as Error).message);
     } finally {
-      if (fileRef.current) fileRef.current.value = "";
+      if (generation === importGeneration.current && fileRef.current)
+        fileRef.current.value = "";
     }
   };
   const acceptImport = async () => {
     if (!preview) return;
+    const generation = importGeneration.current;
     try {
-      const m = (await import("./excel")).previewToModel(preview, transpose);
+      const m = (await import("./excel")).previewToModel(
+        preview,
+        transpose,
+        blanksAsZero,
+      );
+      if (generation !== importGeneration.current) return;
       if (shared) {
         replaceSharedModel(m);
         return;
@@ -842,7 +859,7 @@ export default function App({
         );
       }
       if (kind === "png" || kind === "svg") {
-        const el = document.querySelector(".react-flow") as HTMLElement | null;
+        const el = appRef.current?.querySelector<HTMLElement>(".react-flow");
         if (!el) throw new Error("Open the map before exporting an image.");
         const url = await (kind === "png" ? toPng : toSvg)(el, {
           backgroundColor: "#f8faf7",
@@ -862,7 +879,7 @@ export default function App({
   };
   if (!ready) return <div className="empty">Opening your local workspace…</div>;
   return (
-    <div className="app-shell">
+    <div className="app-shell" ref={appRef}>
       <aside className="rail">
         <a className="brand-mark" href="#" aria-label="FCM Studio home">
           <GitBranch size={25} />
@@ -2150,9 +2167,29 @@ export default function App({
                         <span key={i}>{l}</span>
                       ))}
                     </div>
-                    {preview.issues.length > 0 && (
+                    {preview.blankCells.length > 0 && (
                       <div className="research-note">
-                        {preview.issues.map((issue, i) => (
+                        <p>
+                          {preview.blankCells.length} blank weight(s):{" "}
+                          {preview.blankCells
+                            .map((cell) => cell.address)
+                            .join(", ")}
+                        </p>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={blanksAsZero}
+                            onChange={(event) =>
+                              setBlanksAsZero(event.target.checked)
+                            }
+                          />{" "}
+                          Interpret blank weights as zero (no relationship)
+                        </label>
+                      </div>
+                    )}
+                    {previewIssues.length > 0 && (
+                      <div className="research-note">
+                        {previewIssues.map((issue, i) => (
                           <p key={i}>{issue}</p>
                         ))}
                       </div>
@@ -2164,7 +2201,7 @@ export default function App({
                     </p>
                     <button
                       className="btn dark full"
-                      disabled={preview.issues.length > 0}
+                      disabled={previewIssues.length > 0}
                       onClick={acceptImport}
                     >
                       {shared ? "Replace model" : "Import as a new baseline"}
