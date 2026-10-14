@@ -25,7 +25,7 @@ Open `http://127.0.0.1:5173`. No account or AI key is required for mapping, impo
 4. Set initial activations and optional fixed interventions in the simulation panel, then run and compare with the original baseline. Save named scenarios to revisit model and intervention settings.
 5. Export a JSON project backup before replacing the current workspace. Export Excel or CSV for matrices, CSV for trajectories, and SVG or PNG for the current map viewport.
 
-Excel import shows the detected range, labels, direction convention, and validation issues before replacing the workspace. Choose transpose if the original workbook uses columns as sources. Blank, textual, formula, or out-of-range weights must be corrected in the workbook; use numeric zero for no relationship. The adapter supports `FCM Values` and exports a companion `Range` sheet. A private supplied workbook was checked locally with 26 factors and 63 nonzero relationships; that workbook is not distributed here.
+Excel import shows the detected range, labels, direction convention, and validation issues before replacing the workspace. Choose transpose if the original workbook uses columns as sources. Blank weights block import by default. The preview lists their cell addresses and offers an unchecked option to interpret them as zero (no relationship); consent resets for each file. Textual, formula, or out-of-range weights must still be corrected in the workbook. The adapter supports `FCM Values` and exports a companion `Range` sheet. A private supplied workbook was checked locally with 26 factors and 63 nonzero relationships; that workbook is not distributed here.
 
 ## Saving and boundaries
 

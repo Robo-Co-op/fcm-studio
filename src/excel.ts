@@ -1,3 +1,4 @@
+import { blankIssue, importIssues } from "./import-preview";
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { COLORS, id, validateModel, type Model } from "./model";
@@ -9,6 +10,7 @@ export interface ImportPreview {
   weights: number[][];
   issues: string[];
   range: string;
+  blankCells: { address: string; row: number; column: number }[];
 }
 
 // 書式付きで貼り付けたラベル（リッチテキスト）、数値、ハイパーリンクも文字として読む
@@ -164,10 +166,16 @@ export async function inspectWorkbook(
     if (normalize(rowLabel) !== normalize(label))
       issues.push(`Row ${i + 1} label does not match its column label.`);
   });
+  const blankCells: ImportPreview["blankCells"] = [];
   const weights = Array.from({ length: height }, (_, i) =>
     Array.from({ length: width }, (_, j) => {
       const cell = sheet.getCell(row + i + 1, col + j + 1);
       const value = cell.value;
+      if (value === null || value === undefined || value === "") {
+        blankCells.push({ address: cell.address, row: i, column: j });
+        issues.push(blankIssue(cell.address));
+        return Number.NaN;
+      }
       if (
         typeof value !== "number" ||
         !Number.isFinite(value) ||
@@ -202,14 +210,16 @@ export async function inspectWorkbook(
     weights,
     issues,
     range,
+    blankCells,
   };
 }
 
 export function previewToModel(
   preview: ImportPreview,
   transpose = false,
+  blanksAsZero = false,
 ): Model {
-  if (preview.issues.length)
+  if (importIssues(preview, blanksAsZero).length)
     throw new Error("Resolve import issues before importing.");
   if (
     !preview.labels.length ||
@@ -225,7 +235,11 @@ export function previewToModel(
     y: Math.floor(i / 5) * 140,
     provenance: "imported" as const,
   }));
-  const relationships = preview.weights.flatMap((row, i) =>
+  const weights = preview.weights.map((row) => [...row]);
+  if (blanksAsZero) {
+    for (const cell of preview.blankCells) weights[cell.row][cell.column] = 0;
+  }
+  const relationships = weights.flatMap((row, i) =>
     row.flatMap((weight, j) =>
       weight === 0
         ? []

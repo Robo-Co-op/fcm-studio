@@ -88,12 +88,13 @@ export function workbookToProjectInput(
   preview: ImportPreview,
   transpose: boolean,
   fileName: string,
+  blanksAsZero = false,
 ): DemoProjectInput {
   const base = fileName.replace(/\.[^.]+$/, "").trim();
   return {
     name: base ? base.slice(0, MAX_NAME) : "Imported research map",
     agenda: preview.agenda,
-    model: previewToModel(preview, transpose),
+    model: previewToModel(preview, transpose, blanksAsZero),
   };
 }
 

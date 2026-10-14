@@ -143,3 +143,36 @@ test("editor imports a JSON backup into the shared project and the second editor
   const item = await listedCount(page, "Workshop follow-up model");
   await expect(item).toContainText("3 factors · 1 connections");
 });
+
+test("shared replacement requires blank consent and preserves undo", async ({
+  page,
+}) => {
+  await openProject(page, "Neighborhood resilience map");
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load(await workbook());
+  book.worksheets[0].getCell("C5").value = null;
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "synthetic-blank.xlsx",
+      mimeType: XLSX,
+      buffer: Buffer.from(await book.xlsx.writeBuffer()),
+    });
+  const replace = page.getByRole("button", { name: "Replace model" });
+  await expect(replace).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: "Interpret blank weights as zero" })
+    .check();
+  await replace.click();
+  await expect(
+    await listedCount(page, "Neighborhood resilience map"),
+  ).toContainText("3 factors · 3 connections");
+  await page
+    .getByRole("button", { name: /Neighborhood resilience map/ })
+    .click();
+  await page.getByTitle("Undo").click();
+  await expect(
+    await listedCount(page, "Neighborhood resilience map"),
+  ).toContainText("2 factors · 1 connections");
+});
